@@ -31,14 +31,15 @@ function filterBar(period = true, scope = false) {
 }
 
 /* ===== Tableau de bord ===== */
-function bars(items, fmt = v => v, color = 'var(--accent)') {
+function bars(items, fmt = v => v, color = 'var(--grad)') {
   const max = Math.max(1, ...items.map(i => i.v));
   return `<div class="bars">${items.map(i => `<div class="bar"><span class="bl" title="${esc(i.name)}">${esc(i.name)}</span><span class="bt"><span style="width:${Math.max(2, i.v / max * 100)}%;background:${i.color || color}"></span></span><span class="bv">${fmt(i.v)}</span></div>`).join('') || '<p class="muted">Aucune donnée.</p>'}</div>`;
 }
 function periodLabel() { const f = curF(); if (f.from || f.to) return `Du ${fmtShort(f.from) || '…'} au ${fmtShort(f.to) || '…'}`; return f.year ? `Année ${f.year}` : 'Toutes périodes'; }
 function viewDashboard() {
   const list = filtered(), r = stats(list), t = today();
-  const kpi = (v, l, sub, c) => `<div class="kpi"${c ? ` style="--c:${c}"` : ''}><b>${v}</b><span>${l}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const KI = { 'Sessions au total': '📚', 'À venir / en attente': '⏳', 'Sessions réalisées': '🎉', 'Reportées': '🔄', 'Annulées': '🌧️', 'Heures réalisées': '⏱️', 'Heures planifiées': '🗓️', 'Participants prévus': '👥', 'Participants présents': '🙋‍♀️', 'Taux de participation': '💖', 'Alertes à traiter': '🔔' };
+  const kpi = (v, l, sub, c) => `<div class="kpi"${c ? ` style="--c:${c}"` : ''}><i class="ki">${KI[l] || '✨'}</i><b>${v}</b><span>${l}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
   const rows = o => Object.values(o).sort((a, b) => b.hReal - a.hReal || b.hPrev - a.hPrev || b.prev - a.prev);
   const tbl = (title, data, first) => `<div class="card"><h3>${title}</h3><div class="scroll"><table class="tbl"><thead><tr><th>${first}</th><th class="n">Sessions prévues</th><th class="n">Réalisées</th><th class="n">Annulées</th><th class="n">Reportées</th><th class="n">Heures prévues</th><th class="n">Heures réalisées</th></tr></thead><tbody>${data.map(e => `<tr><td>${esc(e.name)}</td><td class="n">${e.prev}</td><td class="n">${e.real}</td><td class="n">${e.ann}</td><td class="n">${e.rep}</td><td class="n">${fmtH(e.hPrev)}</td><td class="n"><b>${fmtH(e.hReal)}</b></td></tr>`).join('') || '<tr><td colspan="7" class="muted">Aucune donnée.</td></tr>'}</tbody></table></div></div>`;
   const months = Object.keys(r.mois).sort(), mmax = Math.max(1, ...months.map(m => sum(Object.values(r.mois[m]))));
@@ -63,7 +64,7 @@ function viewDashboard() {
     </div>
     <div class="grid2">
       <div class="card"><h3>Sessions par mois</h3>${chart}<div class="legend">${stack.map(k => `<span><i style="background:${ST[k].color}"></i>${ST[k].label}</span>`).join('')}</div></div>
-      <div class="card"><h3>Heures réalisées par animateur</h3>${bars(rows(r.anim).filter(e => e.hReal || e.hPrev).map(e => ({ name: e.name, v: e.hReal, color: 'var(--accent)' })), fmtH)}</div>
+      <div class="card"><h3>Heures réalisées par animateur</h3>${bars(rows(r.anim).filter(e => e.hReal || e.hPrev).map(e => ({ name: e.name, v: e.hReal, color: 'var(--grad)' })), fmtH)}</div>
       <div class="card"><h3>Sessions par type de formation</h3>${bars(Object.entries(r.type).map(([id, e]) => ({ name: e.name, v: e.prev, color: (T(id) || {}).color })).sort((a, b) => b.v - a.v), v => v)}</div>
       <div class="card"><h3>Répartition par lieu / agence</h3>${bars(Object.values(r.lieu).map(e => ({ name: e.name, v: e.prev })).sort((a, b) => b.v - a.v).slice(0, 12), v => v)}</div>
     </div>
@@ -182,13 +183,13 @@ function sessionForm(s, isNew) {
     <div class="f wide"><span>Coanimateur(s) éventuel(s)</span><div class="checks">${animOpts(true).filter(([id]) => A(id).actif !== false || co.has(id)).map(([id, n]) => `<label class="chk"><input type="checkbox" name="coanim" value="${id}"${co.has(id) ? ' checked' : ''}${d()}> ${esc(n)}</label>`).join('') || '<small class="muted">Aucun animateur référencé.</small>'}</div>${combo('coanimNew', 'anim', '', d(), 'Autre coanimateur (nouveau ou existant)…')}</div>
     ${inp('coanimRole', 'Rôle des coanimateurs (ex. co-animation DCO, binôme)')}
   </div></fieldset>
-  <fieldset><legend>Public concerné</legend><div class="fg">
+  <details class="sect" id="sect-public"><summary>👥 Public concerné <small>${['caisse', 'agences', 'demandeur', 'population', 'profil', 'prevus', 'presents', 'participants'].filter(k => s[k] !== '' && s[k] != null).length ? (['caisse', 'agences', 'demandeur', 'population', 'profil', 'prevus', 'presents', 'participants'].filter(k => s[k] !== '' && s[k] != null).length + ' champ(s) renseigné(s)') : 'optionnel'}</small></summary><div class="fg">
     ${inp('caisse', 'Caisse / direction / secteur / unité')}${inp('agences', 'Agence ou groupe d\'agences')}${inp('demandeur', 'Demandeur')}
     <div class="f"><span>Population concernée</span>${combo('population', 'population', s.population, d())}</div>
     ${inp('profil', 'Métier / profil des participants')}
     ${inp('prevus', 'Participants prévus', 'number', true, 'min="0"')}${inp('presents', 'Participants présents', 'number', true, 'min="0"')}
     ${txt('participants', 'Liste des participants (si nécessaire)', true, 3)}
-  </div></fieldset>
+  </div></details>
   <fieldset><legend>Organisation et suivi</legend><div class="fg">
     ${inp('dateDemande', 'Date de la demande', 'date')}${inp('origine', 'Personne / origine de la demande')}${inp('organisateur', 'Personne chargée de l\'organisation')}
     ${txt('logistique', 'Besoins matériels ou logistiques')}${inp('support', 'Support de formation utilisé')}

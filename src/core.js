@@ -24,16 +24,16 @@ function download(blob, name) { const a = document.createElement('a'); a.href = 
 
 /* ===== Référentiels fixes ===== */
 const STATUTS = [
-  { id: 'a_planifier', label: 'À planifier', color: '#6b7685', glyph: '○' },
-  { id: 'planifiee', label: 'Planifiée', color: '#2f6fd6', glyph: '◔' },
-  { id: 'confirmee', label: 'Confirmée', color: '#0e8f8c', glyph: '◑' },
-  { id: 'realisee', label: 'Réalisée', color: '#1f9a4d', glyph: '●' },
-  { id: 'reportee', label: 'Reportée', color: '#c77d0a', glyph: '↻' },
-  { id: 'annulee', label: 'Annulée', color: '#cf3b3b', glyph: '✕' }
+  { id: 'a_planifier', label: 'À planifier', color: '#9a8fb0', glyph: '○' },
+  { id: 'planifiee', label: 'Planifiée', color: '#7c6cf0', glyph: '◔' },
+  { id: 'confirmee', label: 'Confirmée', color: '#12a69a', glyph: '◑' },
+  { id: 'realisee', label: 'Réalisée', color: '#2fb36d', glyph: '●' },
+  { id: 'reportee', label: 'Reportée', color: '#f29e4c', glyph: '↻' },
+  { id: 'annulee', label: 'Annulée', color: '#e5487a', glyph: '✕' }
 ];
 const ST = Object.fromEntries(STATUTS.map(s => [s.id, s]));
 const ROLES = { admin: 'Administrateur', gestionnaire: 'Gestionnaire', animateur: 'Animateur', manager: 'Manager / pilote', lecteur: 'Lecteur' };
-const PALETTE = ['#2f6fd6', '#7c4dcc', '#0e8f8c', '#c77d0a', '#c2377f', '#4f56d6', '#5f9a1a', '#0a86a8'];
+const PALETTE = ['#e0539a', '#8b5cf6', '#14b8a6', '#f59e42', '#f472b6', '#6366f1', '#84cc16', '#06b6d4'];
 const PENDING = ['a_planifier', 'planifiee', 'confirmee'];
 const ACTIVE = ['a_planifier', 'planifiee', 'confirmee', 'realisee'];
 

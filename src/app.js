@@ -1,5 +1,5 @@
 /* ===== Rendu général ===== */
-const NAV = [['dashboard', 'Tableau de bord', () => true], ['planning', 'Planning', () => true], ['sessions', 'Sessions', () => true], ['alertes', 'Alertes', () => true], ['historique', 'Historique', () => can.hist()], ['echanges', 'Import / Export', () => can.imp() || can.exp()], ['settings', 'Paramètres', () => can.refs()]];
+const NAV = [['dashboard', '🌸 Tableau de bord', () => true], ['planning', '🗓️ Planning', () => true], ['sessions', '📋 Sessions', () => true], ['alertes', '🔔 Alertes', () => true], ['historique', '🕘 Historique', () => can.hist()], ['echanges', '📥 Import / Export', () => can.imp() || can.exp()], ['settings', '⚙️ Paramètres', () => can.refs()]];
 const VIEWS = { dashboard: viewDashboard, planning: viewPlanning, sessions: viewSessions, alertes: viewAlertes, historique: viewHistorique, echanges: viewEchanges, settings: viewSettings };
 
 function render() {
@@ -10,7 +10,7 @@ function render() {
   const nav = NAV.filter(n => n[2]()), v = nav.some(n => n[0] === S.view) ? S.view : 'dashboard';
   const nAl = computeAlerts().filter(a => a.sev === 'warn').length;
   const scroll = $('main') ? $('main').scrollTop : 0;
-  app.innerHTML = `<header class="top noprint"><div class="brand"><b>Formidable</b><span>Planning des formations</span></div>${syncHTML()}<span class="sp"></span><button class="bell" data-act="goto" data-v="alertes" title="Alertes à traiter">🔔${nAl ? `<em>${nAl}</em>` : ''}</button><div class="who"><b>${esc(S.user.name)}</b><small>${ROLES[S.user.role]}</small></div><button class="btn ghost" data-act="logout">Quitter</button></header>
+  app.innerHTML = `<header class="top noprint"><div class="brand"><b>🌸 Formidable</b><span>Planning des formations</span></div>${syncHTML()}<span class="sp"></span><button class="bell" data-act="goto" data-v="alertes" title="Alertes à traiter">🔔${nAl ? `<em>${nAl}</em>` : ''}</button><div class="who"><b>${esc(S.user.name)}</b><small>${ROLES[S.user.role]}</small></div><button class="btn ghost" data-act="logout">Quitter</button></header>
   <div class="shell"><nav class="side noprint">${nav.map(([k, l]) => `<button class="${k === v ? 'on' : ''}" data-act="goto" data-v="${k}">${l}${k === 'alertes' && nAl ? ` <em>${nAl}</em>` : ''}</button>`).join('')}</nav><main id="main">${VIEWS[v]()}</main></div>`;
   if (scroll && $('main')) $('main').scrollTop = scroll;
   if (fk) { const el = fk[0] === 'f' ? $(`[data-f="${fk[1]}"]`) : $('[data-hq]'); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) { } } }
@@ -18,12 +18,12 @@ function render() {
 }
 
 function setupHTML() {
-  return `<div class="login"><form id="setupForm" class="card"><h1>Bienvenue dans Formidable</h1><p>Application de planification des formations. <b>Toutes les données restent sur votre poste</b> (ou dans le fichier que vous choisirez) : aucune connexion, aucun envoi.</p>
+  return `<div class="login"><form id="setupForm" class="card"><h1>🌸 Bienvenue dans Formidable</h1><p>Application de planification des formations. <b>Toutes les données restent sur votre poste</b> (ou dans le fichier que vous choisirez) : aucune connexion, aucun envoi.</p>
   <label class="f"><span>Votre nom (futur administrateur)</span><input name="name" required autofocus></label><label class="f"><span>Code personnel (facultatif, 4 caractères minimum)</span><input name="pin" type="password" autocomplete="new-password"></label><label class="f"><span>Nom de l'équipe (affiché sur les bilans)</span><input name="org"></label>
   <button class="btn primary" type="submit">Démarrer</button><hr><p class="muted">Vous rejoignez une équipe qui utilise déjà Formidable ?</p><div class="actions wrap">${FS_OK ? '<button type="button" class="btn" data-act="fssetup">Ouvrir le fichier de données partagé…</button>' : ''}<label class="btn">Restaurer une sauvegarde…<input type="file" id="restoreIn" accept=".json" hidden></label></div></form></div>`;
 }
 function loginHTML() {
-  return `<div class="login"><form id="loginForm" class="card"><h1>Formidable</h1><p class="muted">Planning des formations${DB.settings.org ? ' · ' + esc(DB.settings.org) : ''}</p><label class="f"><span>Utilisateur</span><select name="u" required>${opts([...DB.users].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(u => [u.id, `${u.name} (${ROLES[u.role]})`]), sessionStorage.getItem('formidable.last'))}</select></label><label class="f"><span>Code personnel</span><input name="pin" type="password" autocomplete="current-password"></label><p id="loginErr" class="err"></p><button class="btn primary" type="submit">Se connecter</button>${FS_OK && FS.h && FS.msg === 'reauth' ? '<hr><button type="button" class="btn" data-act="fsauth">Réautoriser le fichier partagé</button>' : ''}</form></div>`;
+  return `<div class="login"><form id="loginForm" class="card"><h1>🌸 Formidable</h1><p class="muted">Planning des formations${DB.settings.org ? ' · ' + esc(DB.settings.org) : ''}</p><label class="f"><span>Utilisateur</span><select name="u" required>${opts([...DB.users].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(u => [u.id, `${u.name} (${ROLES[u.role]})`]), sessionStorage.getItem('formidable.last'))}</select></label><label class="f"><span>Code personnel</span><input name="pin" type="password" autocomplete="current-password"></label><p id="loginErr" class="err"></p><button class="btn primary" type="submit">Se connecter</button>${FS_OK && FS.h && FS.msg === 'reauth' ? '<hr><button type="button" class="btn" data-act="fsauth">Réautoriser le fichier partagé</button>' : ''}</form></div>`;
 }
 
 /* ===== Événements ===== */
@@ -99,7 +99,7 @@ const ACT = {
   rmDate: (el, v) => { S.xd = S.xd.filter(x => x !== v); xdRender(); },
   quick: (_, v) => {
     const f = $('#sf'); f.statut.value = v; formSync();
-    if (v === 'realisee') { if (!f.dureeReelle.value) f.dureeReelle.value = f.duree.value; f.presents.focus(); }
+    if (v === 'realisee') { if (!f.dureeReelle.value) f.dureeReelle.value = f.duree.value; $('#sect-public').open = true; f.presents.focus(); }
     else { if (!f.dateDecision.value) f.dateDecision.value = today(); f.motif.focus(); }
   },
   dup: () => { const s = DB.sessions.find(x => x.id === S.cur); closeModal(); openSession(null, '', { ...structuredClone(s), id: uid(), date: '', statut: 'planifiee', dureeReelle: null, presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', groupeId: '', remplaceId: '', suppIntervenu: false }); },
