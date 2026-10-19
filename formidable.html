@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Formidable — Planning des formations</title>
+<style>:root{--bg:#f4f6f9;--panel:#fff;--ink:#1c2430;--muted:#667085;--line:#dde3ea;--accent:#2f6fd6;--accent-ink:#fff;--soft:#eef3fb;--danger:#cf3b3b;--warn:#c77d0a;--ok:#1f9a4d;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);--r:10px}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#12161c;--panel:#1b212a;--ink:#e6eaf0;--muted:#97a2b3;--line:#2b3441;--accent:#6aa1ff;--accent-ink:#0b1220;--soft:#232d3b;--danger:#ff7b7b;--warn:#f0b04a;--ok:#53c985;--shadow:none}}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1{font-size:1.5rem;margin:0 0 .15rem}h2{font-size:1.15rem;margin:0}h3{font-size:1rem;margin:0 0 .7rem}h4{margin:0 0 .4rem;font-size:.9rem}
+a{color:var(--accent)}code{background:var(--soft);padding:0 .3em;border-radius:4px}
+.muted{color:var(--muted)}.sp{flex:1}.hide{display:none!important}.pad{padding:1rem}.warnt{color:var(--warn);font-weight:600}.err{color:var(--danger)}.pre{white-space:pre-line}.n{text-align:right;font-variant-numeric:tabular-nums}.r{text-align:right;white-space:nowrap}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;min-width:0;max-width:100%}
+input:disabled,select:disabled,textarea:disabled{background:var(--soft);color:var(--muted);cursor:not-allowed}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=color]{padding:2px;height:2.2rem;width:4rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--line);background:var(--panel);padding:.45rem .85rem;border-radius:8px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--soft)}.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}.btn.danger.ghost{background:transparent;color:var(--danger)}.btn.ghost{background:transparent;border-color:transparent}.btn.sm{padding:.2rem .55rem;font-size:.85rem}
+.lnk{background:none;border:0;color:var(--accent);cursor:pointer;padding:0;text-decoration:underline;font-size:.85rem}
+.chipb{border:1px solid var(--line);background:var(--soft);border-radius:99px;padding:.1rem .6rem;font-size:.8rem;cursor:pointer}
+.pill{border:1px solid var(--line);border-radius:99px;padding:.2rem .7rem;font-size:.8rem;background:var(--soft);color:var(--muted);cursor:default}
+button.pill{cursor:pointer}.pill.ok{color:var(--ok);border-color:var(--ok);background:transparent}.pill.warn{color:var(--warn);border-color:var(--warn);background:transparent}.pill.err{color:var(--danger);border-color:var(--danger);background:transparent}
+.top{display:flex;align-items:center;gap:.8rem;padding:.55rem 1rem;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.brand{display:flex;flex-direction:column;line-height:1.1}.brand b{font-size:1.2rem;color:var(--accent);letter-spacing:.02em}.brand span{font-size:.72rem;color:var(--muted)}
+.who{display:flex;flex-direction:column;line-height:1.15;text-align:right}.who small{color:var(--muted)}
+.bell{background:none;border:0;font-size:1.2rem;cursor:pointer;position:relative}.bell em,.side em{font-style:normal;background:var(--danger);color:#fff;border-radius:99px;font-size:.7rem;padding:0 .4rem;margin-left:.2rem}.bell em{position:absolute;top:-4px;right:-6px}
+.shell{display:flex;min-height:calc(100vh - 56px)}
+.side{width:200px;flex:none;padding:.8rem;display:flex;flex-direction:column;gap:.2rem;border-right:1px solid var(--line);background:var(--panel)}
+.side button{text-align:left;border:0;background:none;padding:.55rem .75rem;border-radius:8px;cursor:pointer}.side button:hover{background:var(--soft)}.side button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+main{flex:1;min-width:0;padding:1.2rem 1.4rem 3rem}
+.page-h{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem}.page-h p{margin:0}
+.actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.actions.wrap{margin:.6rem 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:1rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.card>p:first-of-type{margin-top:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem}
+.filters{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:1rem;padding:.7rem;background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.filters select,.filters input{padding:.35rem .5rem;max-width:190px}.fl{display:flex;gap:.3rem;align-items:center;font-size:.85rem;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem;margin-bottom:1rem}
+.kpi{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--c,var(--accent));border-radius:var(--r);padding:.7rem .9rem;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.kpi b{font-size:1.65rem;line-height:1.15;font-variant-numeric:tabular-nums}.kpi span{font-weight:600;font-size:.88rem}.kpi small{color:var(--muted);font-size:.76rem}
+.bars{display:flex;flex-direction:column;gap:.35rem}.bar{display:grid;grid-template-columns:minmax(80px,150px) 1fr 62px;gap:.5rem;align-items:center;font-size:.88rem}
+.bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bt{background:var(--soft);border-radius:5px;height:14px;display:block;overflow:hidden}.bt span{display:block;height:100%;border-radius:5px}.bv{text-align:right;font-variant-numeric:tabular-nums}
+.mchart{display:flex;gap:.35rem;align-items:flex-end;height:190px;padding-top:.5rem}.mcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.mstack{width:100%;max-width:46px;display:flex;flex-direction:column;border-radius:5px;overflow:hidden;min-height:18px}.mstack span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;min-height:14px}.mcol em{font-style:normal;font-size:.72rem;color:var(--muted);margin-top:.2rem}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.8rem;color:var(--muted);margin:.5rem 0}.legend i{display:inline-block;width:.7rem;height:.7rem;border-radius:3px;margin-right:.3rem;vertical-align:-1px}
+.scroll{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}.tbl caption{text-align:left;font-weight:600;padding:.4rem 0}
+.tbl th{text-align:left;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);border-bottom:2px solid var(--line);padding:.4rem .6rem;white-space:nowrap}.tbl th.n{text-align:right}
+.tbl td{padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}.tbl.hover tbody tr{cursor:pointer}.tbl.hover tbody tr:hover{background:var(--soft)}
+.sortb{background:none;border:0;cursor:pointer;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;padding:0}
+.badge{display:inline-flex;gap:.3rem;align-items:center;border:1px solid var(--c);color:var(--c);border-radius:99px;padding:.05rem .55rem;font-size:.8rem;font-weight:600;white-space:nowrap}.badge i{font-style:normal}
+.tag{background:var(--soft);border-radius:6px;padding:.05rem .45rem;font-size:.78rem}.tag.lg{font-size:.85rem;padding:.2rem .6rem;display:inline-flex;gap:.4rem;align-items:center}
+.dot{display:inline-block;width:.65rem;height:.65rem;border-radius:50%;margin-right:.4rem}.dot.big{width:1.1rem;height:1.1rem}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}.seg button{border:0;background:none;padding:.4rem .8rem;cursor:pointer;border-right:1px solid var(--line)}.seg button:last-child{border:0}.seg button.on{background:var(--accent);color:var(--accent-ink)}.seg.tabs{margin-bottom:1rem}
+.calbar{display:flex;flex-wrap:wrap;gap:.6rem 1.2rem;align-items:center;margin-bottom:.4rem}.calnav{display:flex;gap:.4rem;align-items:center}.calnav h2{margin-left:.6rem}.calopt{display:flex;gap:.8rem;margin-left:auto;font-size:.85rem;color:var(--muted)}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--panel)}
+.dh{padding:.35rem;text-align:center;font-size:.75rem;color:var(--muted);background:var(--soft);text-transform:uppercase}
+.day{min-height:104px;border-top:1px solid var(--line);border-left:1px solid var(--line);padding:.2rem;display:flex;flex-direction:column;gap:2px;cursor:default}.day:nth-child(7n+8){border-left:0}[data-act=new].day{cursor:cell}
+.day.other{background:var(--bg);opacity:.6}.day.we{background:color-mix(in srgb,var(--soft) 55%,transparent)}.day.today .dn{background:var(--accent);color:var(--accent-ink);border-radius:99px}.dn{font-size:.78rem;font-weight:600;align-self:flex-start;min-width:1.4rem;text-align:center}
+.chip{display:block;width:100%;text-align:left;border:0;border-left:4px solid var(--c2);background:color-mix(in srgb,var(--c) 18%,var(--panel));color:var(--ink);padding:1px 5px;border-radius:4px;font-size:.74rem;line-height:1.35;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip:hover{background:color-mix(in srgb,var(--c) 32%,var(--panel))}.chip.cancelled{text-decoration:line-through;opacity:.65}.chip.postponed{border-style:dashed;opacity:.8}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem}.wday{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:.6rem;display:flex;flex-direction:column;gap:.3rem;min-height:160px}.wday.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.wday .chip{white-space:normal;font-size:.8rem;padding:3px 6px}
+.dayview{display:flex;flex-direction:column;gap:.7rem;max-width:760px}.dcard{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:var(--r);padding:.8rem 1rem;cursor:pointer}.dcard h3{margin:.2rem 0}.dcard p{margin:.2rem 0}
+.ygrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:.8rem}.ymonth{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:.6rem}.ymonth h4 small{color:var(--muted);font-weight:400}
+.ymini{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:.76rem}.yh{font-style:normal;color:var(--muted)}.yd{text-decoration:none;color:var(--ink);border-radius:5px;padding:2px 0}.yd.has{background:var(--c);color:#fff;font-weight:700}.yd.today{outline:2px solid var(--accent)}
+table.rgrid{border-collapse:collapse;font-size:.75rem;background:var(--panel);width:100%}.rgrid th,.rgrid td{border:1px solid var(--line);padding:1px;text-align:center;min-width:26px}.rgrid .rname{text-align:left;min-width:140px;padding:.3rem .5rem;position:sticky;left:0;background:var(--panel);font-size:.82rem}.rgrid .we{background:var(--soft)}.rgrid th.today{background:var(--accent);color:var(--accent-ink)}.rgrid th small{display:block;color:var(--muted);font-weight:400}
+.rc{border:0;background:var(--c);color:#fff;border-radius:4px;font-size:.68rem;padding:1px 3px;cursor:pointer;display:block;width:100%;margin:1px 0}.rc.cancelled{text-decoration:line-through;opacity:.6}
+.alert{display:grid;grid-template-columns:150px 1fr;gap:.1rem .8rem;padding:.55rem .7rem;border-radius:8px;border-left:4px solid var(--warn);background:var(--soft);margin-bottom:.4rem;cursor:pointer}.alert.info{border-color:var(--accent)}.alert.rappel{border-color:var(--ok)}.alert em{grid-column:2;font-style:normal;color:var(--muted)}.alert:hover{filter:brightness(.97)}
+.info{background:var(--soft);border-left:4px solid var(--accent);padding:.6rem .8rem;border-radius:8px;margin:.5rem 0}.info.warn{border-color:var(--warn)}
+.note{font-size:.82rem}
+.overlay{position:fixed;inset:0;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;padding:2vh 1rem;overflow:auto;z-index:50}
+.modal{background:var(--panel);border-radius:14px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;max-height:96vh}.modal.big{max-width:900px}.modal.small{max-width:460px}
+.modal form{display:flex;flex-direction:column;min-height:0;max-height:96vh}
+.mhead{display:flex;align-items:center;gap:.8rem;padding:.8rem 1.1rem;border-bottom:1px solid var(--line)}.mhead h2{flex:1}.x{border:0;background:none;font-size:1.1rem;cursor:pointer;color:var(--muted)}
+.mbody{padding:1rem 1.1rem;overflow:auto;flex:1}.mfoot{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.75rem 1.1rem;border-top:1px solid var(--line);background:var(--panel);border-radius:0 0 14px 14px}
+fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 .9rem;padding:.4rem .8rem .8rem}legend{font-weight:600;padding:0 .4rem;font-size:.9rem;color:var(--accent)}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem .9rem}.fg1{display:flex;flex-direction:column;gap:.7rem}.f{display:flex;flex-direction:column;gap:.2rem;font-size:.84rem}.f>span:first-child{color:var(--muted);font-weight:600}.f.wide,.chk.wide{grid-column:1/-1}.f.inl{flex-direction:row;align-items:center;gap:.5rem}
+.f input,.f select,.f textarea{width:100%;font-size:.95rem}.chk{display:flex;gap:.45rem;align-items:center;font-size:.9rem}.checks{display:flex;flex-wrap:wrap;gap:.3rem .9rem}.presets{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin-top:.2rem}
+.adddates{display:flex;gap:.5rem;margin:.4rem 0}.hist{margin:.5rem 0;padding-left:1.1rem;font-size:.85rem}.hist li{margin-bottom:.5rem}
+details{margin:.6rem 0}summary{cursor:pointer;font-weight:600}
+.login{min-height:100vh;display:grid;place-items:center;padding:1rem}.login .card{width:100%;max-width:440px;display:flex;flex-direction:column;gap:.8rem}
+.toast{background:#1c2430;color:#fff;padding:.6rem 1rem;border-radius:8px;margin-top:.5rem;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:420px}.toast.err{background:#a82a2a}
+#toasts{position:fixed;right:1rem;bottom:1rem;z-index:100;display:flex;flex-direction:column;align-items:flex-end}
+@media (max-width:820px){.shell{flex-direction:column}.side{width:auto;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:.4rem}.side button{white-space:nowrap}main{padding:.8rem .7rem 3rem}.who{display:none}.top{flex-wrap:wrap}.day{min-height:70px}.calopt{margin-left:0}.chip{font-size:.66rem}.alert{grid-template-columns:1fr}.alert em{grid-column:1}.bar{grid-template-columns:90px 1fr 54px}}
+@media print{body{background:#fff;color:#000}.noprint,.side,.top,.filters,#toasts{display:none!important}.shell{display:block}main{padding:0}.card,.kpi{box-shadow:none;break-inside:avoid}.grid2{grid-template-columns:1fr 1fr}.scroll{overflow:visible}}
+</style>
+</head>
+<body>
+<div id="app"></div><div id="toasts" aria-live="polite"></div>
+<noscript>Cette application nécessite JavaScript (aucune donnée n'est envoyée en ligne).</noscript>
+<script>/* ===== Lecture / écriture XLSX (100 % local, sans bibliothèque) ===== */
+const TD = new TextDecoder(), TE = new TextEncoder();
+
+async function inflateRaw(u8) {
+  const s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+async function unzip(buf) {
+  const u8 = new Uint8Array(buf), dv = new DataView(buf);
+  let e = -1;
+  for (let i = u8.length - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  if (e < 0) throw new Error('Fichier non reconnu (ce n\'est pas un classeur .xlsx).');
+  const n = dv.getUint16(e + 10, true);
+  let p = dv.getUint32(e + 16, true);
+  const files = {};
+  for (let i = 0; i < n; i++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    const lho = dv.getUint32(p + 42, true);
+    const name = TD.decode(u8.subarray(p + 46, p + 46 + nl));
+    files[name] = { method, csize, lho };
+    p += 46 + nl + el + cl;
+  }
+  return {
+    names: Object.keys(files),
+    async text(name) {
+      const f = files[name]; if (!f) return null;
+      const l = f.lho, start = l + 30 + dv.getUint16(l + 26, true) + dv.getUint16(l + 28, true);
+      let d = u8.subarray(start, start + f.csize);
+      if (f.method === 8) d = await inflateRaw(d);
+      return TD.decode(d);
+    }
+  };
+}
+
+const colNum = ref => { const m = /^([A-Z]+)(\d+)$/.exec(ref); let c = 0; for (const ch of m[1]) c = c * 26 + ch.charCodeAt(0) - 64; return { c, r: +m[2] }; };
+const colName = n => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = (n - m - 1) / 26; } return s; };
+const xml = t => new DOMParser().parseFromString(t, 'application/xml');
+const relsMap = d => { const m = {}; for (const r of d.getElementsByTagName('Relationship')) m[r.getAttribute('Id')] = { target: r.getAttribute('Target'), type: r.getAttribute('Type') }; return m; };
+const resolvePath = (base, t) => { if (t.startsWith('/')) return t.slice(1); const parts = base.split('/'); parts.pop(); for (const s of t.split('/')) { if (s === '..') parts.pop(); else if (s !== '.') parts.push(s); } return parts.join('/'); };
+
+async function readXlsx(buf) {
+  const z = await unzip(buf);
+  const wb = xml(await z.text('xl/workbook.xml'));
+  const wbRels = relsMap(xml(await z.text('xl/_rels/workbook.xml.rels')));
+  const ssT = await z.text('xl/sharedStrings.xml');
+  const shared = ssT ? [...xml(ssT).getElementsByTagName('si')].map(si => [...si.getElementsByTagName('t')].map(t => t.textContent).join('')) : [];
+  const sheets = [];
+  for (const s of wb.getElementsByTagName('sheet')) {
+    const rid = s.getAttribute('r:id') || s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    const path = resolvePath('xl/workbook.xml', wbRels[rid].target);
+    const d = xml(await z.text(path));
+    const cells = new Map();
+    for (const c of d.getElementsByTagName('c')) {
+      const { c: cc, r } = colNum(c.getAttribute('r'));
+      const t = c.getAttribute('t'), vEl = c.getElementsByTagName('v')[0];
+      let v = null;
+      if (t === 'inlineStr') v = [...c.getElementsByTagName('t')].map(x => x.textContent).join('');
+      else if (vEl) { v = vEl.textContent; if (t === 's') v = shared[+v]; else if (t === 'str' || t === 'e') v = v; else if (t === 'b') v = v === '1'; else v = Number(v); }
+      if (v !== null && v !== '') cells.set(r + ',' + cc, v);
+    }
+    // commentaires
+    const comments = [];
+    const relPath = path.replace(/worksheets\/(.*)\.xml$/, 'worksheets/_rels/$1.xml.rels');
+    const relT = await z.text(relPath);
+    if (relT) for (const r of Object.values(relsMap(xml(relT)))) {
+      if (!/\/comments$/.test(r.type)) continue;
+      const cd = xml(await z.text(resolvePath(path, r.target)));
+      for (const cm of cd.getElementsByTagName('comment')) {
+        let txt = [...cm.getElementsByTagName('t')].map(x => x.textContent).join('');
+        const m = /Commentaire\s*:\s*([\s\S]*)$/.exec(txt);
+        if (m) txt = m[1];
+        txt = txt.split('\n').map(l => l.trim()).filter(Boolean).join('\n');
+        comments.push({ ...colNum(cm.getAttribute('ref')), text: txt });
+      }
+    }
+    sheets.push({ name: s.getAttribute('name'), cells, comments, get: (r, c) => cells.get(r + ',' + c), maxCol: Math.max(0, ...[...cells.keys()].map(k => +k.split(',')[1])), maxRow: Math.max(0, ...[...cells.keys()].map(k => +k.split(',')[0])) });
+  }
+  return sheets;
+}
+
+/* --- écriture --- */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = u8 => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+
+function zipStore(files) { // files: [{name, data:Uint8Array}]
+  const parts = [], central = []; let off = 0;
+  for (const f of files) {
+    const nm = TE.encode(f.name), crc = crc32(f.data), n = f.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, 0, true); lh.setUint16(12, 0x5821, true); lh.setUint32(14, crc, true); lh.setUint32(18, n, true); lh.setUint32(22, n, true);
+    lh.setUint16(26, nm.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), nm, f.data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint16(12, 0, true); ch.setUint16(14, 0x5821, true); ch.setUint32(16, crc, true); ch.setUint32(20, n, true); ch.setUint32(24, n, true);
+    ch.setUint16(28, nm.length, true); ch.setUint32(42, off, true);
+    central.push(new Uint8Array(ch.buffer), nm);
+    off += 30 + nm.length + n;
+  }
+  const csize = central.reduce((a, b) => a + b.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
+
+const xesc = s => String(s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/** sheets: [{name, rows:[[...]]}] ; 1ère ligne = en-têtes. Valeurs : string | number | Date | null */
+function buildXlsx(sheets) {
+  const used = new Set();
+  const safe = sheets.map((s, i) => {
+    let n = String(s.name || 'Feuille' + (i + 1)).replace(/[:\\\/?*\[\]]/g, '-').slice(0, 31) || 'Feuille';
+    let k = n, j = 2; while (used.has(k.toLowerCase())) k = n.slice(0, 28) + ' ' + j++;
+    used.add(k.toLowerCase()); return { ...s, name: k };
+  });
+  const files = [];
+  const add = (name, text) => files.push({ name, data: TE.encode(text) });
+  add('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + safe.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') + '</Types>');
+  add('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  add('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + safe.map((s, i) => `<sheet name="${xesc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + '</sheets></workbook>');
+  add('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + safe.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') + `<Relationship Id="rId${safe.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  add('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F4E79"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>');
+  safe.forEach((s, i) => {
+    const widths = [];
+    const rows = s.rows.map((row, ri) => '<row r="' + (ri + 1) + '">' + row.map((v, ci) => {
+      if (v === null || v === undefined || v === '') return '';
+      const ref = colName(ci + 1) + (ri + 1);
+      let len;
+      let out;
+      if (v instanceof Date) { out = `<c r="${ref}" s="2"><v>${Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()) / 86400000 + 25569}</v></c>`; len = 10; }
+      else if (typeof v === 'number') { out = `<c r="${ref}"${ri === 0 ? ' s="1"' : ''}><v>${v}</v></c>`; len = String(v).length; }
+      else { const t = String(v); out = `<c r="${ref}" t="inlineStr"${ri === 0 ? ' s="1"' : ''}><is><t xml:space="preserve">${xesc(t)}</t></is></c>`; len = Math.max(...t.split('\n').map(x => x.length)); }
+      widths[ci] = Math.max(widths[ci] || 8, Math.min(60, len + 2));
+      return out;
+    }).join('') + '</row>').join('');
+    const cols = '<cols>' + widths.map((w, ci) => `<col min="${ci + 1}" max="${ci + 1}" width="${w || 8}" customWidth="1"/>`).join('') + '</cols>';
+    add(`xl/worksheets/sheet${i + 1}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>${cols}<sheetData>${rows}</sheetData></worksheet>`);
+  });
+  return zipStore(files);
+}
+
+'use strict';
+/* ===== Utilitaires ===== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+const pad = n => String(n).padStart(2, '0');
+const toISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseISO = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const today = () => toISO(new Date());
+const addDays = (iso, n) => { const d = parseISO(iso); d.setDate(d.getDate() + n); return toISO(d); };
+const startOfWeek = iso => { const d = parseISO(iso); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return toISO(d); };
+const fmtDate = (iso, o) => iso ? parseISO(iso).toLocaleDateString('fr-FR', o || { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const fmtShort = iso => iso ? parseISO(iso).toLocaleDateString('fr-FR') : '';
+const fmtH = h => { const m = Math.round((h || 0) * 60), hh = Math.floor(m / 60), mm = m % 60; return mm ? `${hh} h ${pad(mm)}` : `${hh} h`; };
+const t2m = t => { if (!t) return null; const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const norm = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const lev = (a, b) => { const m = a.length, n = b.length; if (!m) return n; if (!n) return m; let p = Array.from({ length: n + 1 }, (_, i) => i); for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[n]; };
+const sum = (a, f) => a.reduce((x, y) => x + (f ? f(y) : y), 0);
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+
+/* ===== Référentiels fixes ===== */
+const STATUTS = [
+  { id: 'a_planifier', label: 'À planifier', color: '#6b7685', glyph: '○' },
+  { id: 'planifiee', label: 'Planifiée', color: '#2f6fd6', glyph: '◔' },
+  { id: 'confirmee', label: 'Confirmée', color: '#0e8f8c', glyph: '◑' },
+  { id: 'realisee', label: 'Réalisée', color: '#1f9a4d', glyph: '●' },
+  { id: 'reportee', label: 'Reportée', color: '#c77d0a', glyph: '↻' },
+  { id: 'annulee', label: 'Annulée', color: '#cf3b3b', glyph: '✕' }
+];
+const ST = Object.fromEntries(STATUTS.map(s => [s.id, s]));
+const ROLES = { admin: 'Administrateur', gestionnaire: 'Gestionnaire', animateur: 'Animateur', manager: 'Manager / pilote', lecteur: 'Lecteur' };
+const PALETTE = ['#2f6fd6', '#7c4dcc', '#0e8f8c', '#c77d0a', '#c2377f', '#4f56d6', '#5f9a1a', '#0a86a8'];
+const PENDING = ['a_planifier', 'planifiee', 'confirmee'];
+const ACTIVE = ['a_planifier', 'planifiee', 'confirmee', 'realisee'];
+
+/* ===== Base de données (stockage local du navigateur) ===== */
+let DB = null;
+const KEY = 'formidable.db.v1';
+const S = { user: null, view: 'dashboard', f: { year: String(new Date().getFullYear()) }, cal: { mode: 'month', date: today(), group: '', color: 'statut' }, sort: { k: 'date', d: 1 }, setTab: 'types' };
+
+function newDB() {
+  return {
+    v: 1, settingsMod: '', del: {},
+    settings: {
+      org: '', alertDays: 7,
+      types: [{ id: uid(), name: 'Néo', color: PALETTE[0] }, { id: uid(), name: 'SPECIFICA', color: PALETTE[1] }, { id: uid(), name: 'Collectif Agence', color: PALETTE[3] }],
+      themes: [], equipes: [], populations: ['Nouveaux collaborateurs', 'Conseillers', 'Managers'],
+      durees: [{ l: 'Demi-journée', h: 3 }, { l: 'Journée', h: 7 }]
+    },
+    lieux: ['Aiguille de Bionnassay|salle', 'Cirque du Fer à Cheval|salle', 'Dôme du Goûter|salle', 'Agence Annecy Saint-François|agence', 'Agence de Saint-Michel-de-Maurienne|agence'].map(x => { const [name, kind] = x.split('|'); return { id: uid(), name, kind, adresse: '', secteur: '', lien: '', aliases: [], mod: '' }; }),
+    animateurs: [], users: [], sessions: [], history: []
+  };
+}
+function loadDB() { try { const t = localStorage.getItem(KEY); if (t) { DB = JSON.parse(t); return true; } } catch (e) { console.error(e); } DB = newDB(); return false; }
+const stamp = o => { o.mod = new Date().toISOString(); return o; };
+const touchSettings = () => { DB.settingsMod = new Date().toISOString(); };
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) { toast('Stockage du navigateur indisponible ou plein : exportez une sauvegarde !', 'err'); }
+  scheduleFileSave();
+}
+function logH(action, s, detail) {
+  DB.history.push({ id: uid(), ts: new Date().toISOString(), user: S.user ? S.user.name : '—', sid: s ? s.id : null, label: s ? sessionLabel(s) : '', action, detail: detail || '' });
+  if (DB.history.length > 20000) DB.history.splice(0, DB.history.length - 20000);
+}
+function mergeDB(a, b) {
+  const r = structuredClone(a), del = { ...(a.del || {}), ...(b.del || {}) };
+  for (const k of ['sessions', 'animateurs', 'lieux', 'users']) {
+    const m = new Map();
+    for (const x of [...(a[k] || []), ...(b[k] || [])]) { const o = m.get(x.id); if (!o || (x.mod || '') > (o.mod || '')) m.set(x.id, x); }
+    r[k] = [...m.values()].filter(x => !(del[x.id] && del[x.id] >= (x.mod || '')));
+  }
+  const h = new Map(); for (const x of [...(a.history || []), ...(b.history || [])]) h.set(x.id, x);
+  r.history = [...h.values()].sort((x, y) => x.ts < y.ts ? -1 : 1);
+  if ((b.settingsMod || '') > (a.settingsMod || '')) { r.settings = b.settings; r.settingsMod = b.settingsMod; }
+  r.del = del; return r;
+}
+
+/* Accès rapides */
+const A = id => DB.animateurs.find(x => x.id === id);
+const L = id => DB.lieux.find(x => x.id === id);
+const T = id => DB.settings.types.find(x => x.id === id);
+const animName = id => (A(id) || {}).name || '';
+const typeName = id => (T(id) || {}).name || '—';
+const lieuName = s => s.modalite === 'distance' ? 'À distance' : ((L(s.lieuId) || {}).name || '');
+function sessionLabel(s) { return `${fmtShort(s.date)} · ${s.titre || typeName(s.typeId)}`; }
+const involved = s => [s.titulaireId, s.suppleantId, ...(s.coanim || [])].filter(Boolean);
+/** Intervenants qui « comptent » pour la session (titulaire, ou suppléant s'il est intervenu, + coanimateurs) */
+const effective = s => [...new Set([...(s.suppIntervenu && s.suppleantId ? [s.suppleantId] : (s.titulaireId ? [s.titulaireId] : [])), ...(s.coanim || [])])];
+const dureeEff = s => s.statut === 'realisee' ? (s.dureeReelle ?? s.duree ?? 0) : (s.duree ?? 0);
+
+function newSession(o = {}) {
+  return { id: uid(), titre: '', typeId: '', theme: '', objectif: '', date: '', debut: '', fin: '', duree: 7, dureeReelle: null, statut: 'planifiee', modalite: 'presentiel', lieuId: '', lienVisio: '', adresse: '', titulaireId: '', suppleantId: '', suppIntervenu: false, coanim: [], coanimRole: '', caisse: '', agences: '', demandeur: '', population: '', profil: '', prevus: null, presents: null, participants: '', dateDemande: '', origine: '', organisateur: '', logistique: '', support: '', docs: [], commentaire: '', motif: '', dateDecision: '', decisionPar: '', nouvelleDate: '', groupeId: '', remplaceId: '', created: new Date().toISOString(), createdBy: S.user ? S.user.name : '', ...o };
+}
+
+/* ===== Droits ===== */
+const role = () => S.user ? S.user.role : null;
+const can = {
+  edit: () => ['admin', 'gestionnaire'].includes(role()),
+  own: s => role() === 'animateur' && S.user.animateurId && involved(s).includes(S.user.animateurId),
+  refs: () => ['admin', 'gestionnaire'].includes(role()),
+  admin: () => role() === 'admin',
+  imp: () => ['admin', 'gestionnaire'].includes(role()),
+  exp: () => ['admin', 'gestionnaire', 'manager'].includes(role()),
+  hist: () => ['admin', 'gestionnaire', 'manager'].includes(role())
+};
+
+/* ===== Authentification locale (garde-fou ergonomique) ===== */
+async function hashPin(salt, pin) {
+  if (crypto.subtle) { const b = await crypto.subtle.digest('SHA-256', TE.encode(salt + ':' + pin)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+  return 'x' + btoa(unescape(encodeURIComponent(salt + pin)));
+}
+async function makeUser(name, roleId, pin, animateurId) {
+  const u = stamp({ id: uid(), name, role: roleId, animateurId: animateurId || '', salt: uid(), pin: '' });
+  if (pin) u.pin = await hashPin(u.salt, pin);
+  return u;
+}
+
+/* ===== Sauvegarde chiffrée (AES-GCM / PBKDF2) ===== */
+const b64 = u8 => { let s = ''; u8.forEach(x => s += String.fromCharCode(x)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pw, salt) { const k = await crypto.subtle.importKey('raw', TE.encode(pw), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); }
+async function encryptJSON(obj, pw) { const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)); const key = await deriveKey(pw, salt); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, TE.encode(JSON.stringify(obj)))); return { fmt: 'formidable-enc', v: 1, salt: b64(salt), iv: b64(iv), data: b64(ct) }; }
+async function decryptJSON(o, pw) { const key = await deriveKey(pw, unb64(o.salt)); const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(o.iv) }, key, unb64(o.data)); return JSON.parse(TD.decode(pt)); }
+
+/* ===== Fichier de données partagé (File System Access API) ===== */
+const FS = { h: null, mod: 0, msg: '', timer: null };
+const FS_OK = typeof window.showSaveFilePicker === 'function';
+function kv(mode, fn) { return new Promise((res, rej) => { const o = indexedDB.open('formidable', 1); o.onupgradeneeded = () => o.result.createObjectStore('kv'); o.onerror = () => rej(o.error); o.onsuccess = () => { const tx = o.result.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); }; }); }
+const kvGet = k => kv('readonly', s => s.get(k)), kvSet = (k, v) => kv('readwrite', s => s.put(v, k)), kvDel = k => kv('readwrite', s => s.delete(k));
+const FILE_TYPES = [{ description: 'Données Formidable', accept: { 'application/json': ['.json'] } }];
+
+async function fileInit() { if (!FS_OK) return; try { FS.h = await kvGet('h') || null; if (FS.h) { FS.msg = (await FS.h.queryPermission({ mode: 'readwrite' })) === 'granted' ? 'ok' : 'reauth'; if (FS.msg === 'ok') await fileCheck(true); } } catch (e) { FS.h = null; } }
+async function fileLink(create) {
+  const h = create ? await showSaveFilePicker({ suggestedName: 'formidable-donnees.json', types: FILE_TYPES }) : (await showOpenFilePicker({ types: FILE_TYPES }))[0];
+  FS.h = h; await kvSet('h', h); FS.mod = 0;
+  const f = await h.getFile();
+  if (f.size > 2) { const remote = JSON.parse(await f.text()); if (remote.fmt === 'formidable-enc') throw new Error('Ce fichier est une sauvegarde chiffrée : utilisez « Restaurer une sauvegarde ».'); DB = mergeDB(DB, remote); FS.mod = f.lastModified; }
+  persist(); await fileWrite(true); FS.msg = 'ok';
+}
+async function fileUnlink() { FS.h = null; FS.msg = ''; try { await kvDel('h'); } catch (e) { } }
+async function fileReauth() { try { if ((await FS.h.requestPermission({ mode: 'readwrite' })) === 'granted') { FS.msg = 'ok'; await fileCheck(true); await fileWrite(true); } } catch (e) { FS.msg = 'err'; } render(); }
+async function fileCheck(silent) {
+  if (!FS.h || FS.msg !== 'ok') return;
+  try {
+    const f = await FS.h.getFile();
+    if (f.lastModified > FS.mod && f.size > 2) { const remote = JSON.parse(await f.text()); DB = mergeDB(DB, remote); FS.mod = f.lastModified; try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) { } if (!silent) { toast('Planning mis à jour depuis le fichier partagé.'); render(); } }
+  } catch (e) { FS.msg = 'err'; }
+}
+function scheduleFileSave() { if (!FS.h) return; clearTimeout(FS.timer); FS.timer = setTimeout(() => fileWrite(), 400); }
+async function fileWrite(force) {
+  if (!FS.h) return;
+  try {
+    if ((await FS.h.queryPermission({ mode: 'readwrite' })) !== 'granted') { FS.msg = 'reauth'; updateSync(); return; }
+    const f = await FS.h.getFile();
+    if (f.lastModified > FS.mod && f.size > 2 && !force) { DB = mergeDB(DB, JSON.parse(await f.text())); toast('Fusion avec les modifications d\'un collègue.'); try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) { } render(); }
+    const w = await FS.h.createWritable(); await w.write(JSON.stringify(DB)); await w.close();
+    FS.mod = (await FS.h.getFile()).lastModified; FS.msg = 'ok';
+  } catch (e) { console.error(e); FS.msg = 'err'; }
+  updateSync();
+}
+function updateSync() { const el = $('#sync'); if (el) el.outerHTML = syncHTML(); }
+function syncHTML() {
+  if (!FS_OK) return '<span id="sync" class="pill" title="Le navigateur ne permet pas le fichier partagé : utilisez Chrome ou Edge, ou les sauvegardes manuelles.">Données locales</span>';
+  if (!FS.h) return '<button id="sync" class="pill warn" data-act="goto" data-v="echanges" title="Les données sont uniquement dans ce navigateur">Données locales · lier un fichier</button>';
+  if (FS.msg === 'reauth') return '<button id="sync" class="pill warn" data-act="fsauth">Fichier partagé : cliquer pour réautoriser</button>';
+  if (FS.msg === 'err') return '<button id="sync" class="pill err" data-act="goto" data-v="echanges">Erreur fichier partagé</button>';
+  return `<span id="sync" class="pill ok" title="Synchronisé avec ${esc(FS.h.name)}">Fichier partagé : ${esc(FS.h.name)}</span>`;
+}
+
+/* ===== Filtrage ===== */
+function filtered(list = DB.sessions, f = S.f) {
+  return list.filter(s => {
+    if (f.from && s.date < f.from) return false;
+    if (f.to && s.date > f.to) return false;
+    if (f.year && !f.from && !f.to && s.date.slice(0, 4) !== f.year) return false;
+    if (f.type && s.typeId !== f.type) return false;
+    if (f.theme && s.theme !== f.theme) return false;
+    if (f.statut && s.statut !== f.statut) return false;
+    if (f.modalite && s.modalite !== f.modalite) return false;
+    if (f.anim && !involved(s).includes(f.anim)) return false;
+    if (f.equipe && !involved(s).some(i => (A(i) || {}).equipe === f.equipe)) return false;
+    if (f.lieu && s.lieuId !== f.lieu) return false;
+    if (f.secteur && ((L(s.lieuId) || {}).secteur || '') !== f.secteur) return false;
+    if (f.q) { const q = norm(f.q); if (!norm([s.titre, typeName(s.typeId), s.theme, lieuName(s), animName(s.titulaireId), animName(s.suppleantId), s.demandeur, s.commentaire, s.agences, s.caisse].join(' ')).includes(q)) return false; }
+    return true;
+  });
+}
+
+/* ===== Alertes ===== */
+function computeAlerts() {
+  const out = [], t = today(), soon = addDays(t, DB.settings.alertDays || 7);
+  const act = DB.sessions.filter(s => ['a_planifier', 'planifiee', 'confirmee', 'realisee'].includes(s.statut));
+  for (const s of DB.sessions) {
+    if (s.statut === 'annulee' || s.statut === 'reportee') continue;
+    if (!s.titulaireId) out.push({ sev: 'warn', kind: 'Animateur manquant', sid: s.id, msg: 'Aucun animateur titulaire désigné.' });
+    else if (!s.suppleantId && s.statut !== 'realisee') out.push({ sev: 'info', kind: 'Suppléant manquant', sid: s.id, msg: 'Aucun suppléant prévu.' });
+    if (s.date < t && PENDING.includes(s.statut)) out.push({ sev: 'warn', kind: 'À confirmer', sid: s.id, msg: 'Session passée non confirmée comme réalisée.' });
+    if (s.date >= t && s.date <= soon && s.statut !== 'a_planifier') { const n = Math.round((parseISO(s.date) - parseISO(t)) / 864e5); out.push({ sev: 'rappel', kind: 'Rappel', sid: s.id, msg: n === 0 ? 'Session aujourd\'hui.' : `Session dans ${n} jour${n > 1 ? 's' : ''}.` }); }
+  }
+  const byDate = {};
+  act.forEach(s => (byDate[s.date] ||= []).push(s));
+  const overlap = (a, b) => { const a1 = t2m(a.debut), a2 = t2m(a.fin), b1 = t2m(b.debut), b2 = t2m(b.fin); if (a1 !== null && a2 !== null && b1 !== null && b2 !== null) return a1 < b2 && b1 < a2; return (a.duree || 0) + (b.duree || 0) > 7.5; };
+  for (const list of Object.values(byDate)) for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j]; if (!overlap(a, b)) continue;
+    const ea = effective(a), common = ea.filter(x => effective(b).includes(x));
+    if (common.length) { const m = `Conflit : ${common.map(animName).join(', ')} est aussi sur « ${sessionLabel(b)} ».`; out.push({ sev: 'warn', kind: 'Conflit animateur', sid: a.id, msg: m }); out.push({ sev: 'warn', kind: 'Conflit animateur', sid: b.id, msg: `Conflit : ${common.map(animName).join(', ')} est aussi sur « ${sessionLabel(a)} ».` }); }
+    const l = a.lieuId && a.lieuId === b.lieuId && a.modalite !== 'distance' && b.modalite !== 'distance' ? L(a.lieuId) : null;
+    if (l && l.kind === 'salle') { out.push({ sev: 'warn', kind: 'Conflit de salle', sid: a.id, msg: `Salle « ${l.name} » déjà prise par « ${sessionLabel(b)} ».` }); out.push({ sev: 'warn', kind: 'Conflit de salle', sid: b.id, msg: `Salle « ${l.name} » déjà prise par « ${sessionLabel(a)} ».` }); }
+  }
+  return out.sort((x, y) => (x.sev === y.sev ? 0 : x.sev === 'warn' ? -1 : x.sev === 'info' ? (y.sev === 'warn' ? 1 : -1) : 1) || (DB.sessions.find(s => s.id === x.sid).date < DB.sessions.find(s => s.id === y.sid).date ? -1 : 1));
+}
+const conflictsFor = s => computeAlerts().filter(a => a.sid === s.id && a.kind.startsWith('Conflit'));
+
+/* ===== Statistiques ===== */
+function stats(list) {
+  const r = { n: list.length, st: Object.fromEntries(STATUTS.map(s => [s.id, 0])), hPlan: 0, hReal: 0, prevus: 0, presents: 0, partN: 0, anim: {}, type: {}, lieu: {}, secteur: {}, mois: {} };
+  const ent = (o, k, name) => o[k] ||= { name, prev: 0, real: 0, hPrev: 0, hReal: 0, ann: 0, rep: 0 };
+  for (const s of list) {
+    r.st[s.statut]++;
+    const active = ACTIVE.includes(s.statut), done = s.statut === 'realisee';
+    const h = s.duree || 0, hr = dureeEff(s);
+    if (active) r.hPlan += h;
+    if (done) { r.hReal += hr; if (s.prevus != null) r.prevus += +s.prevus; if (s.presents != null) { r.presents += +s.presents; r.partN++; } }
+    const targets = [['type', s.typeId, typeName(s.typeId)], ['lieu', s.modalite === 'distance' ? 'dist' : (s.lieuId || '-'), lieuName(s) || 'Non renseigné'], ['secteur', ((L(s.lieuId) || {}).secteur || (s.modalite === 'distance' ? 'À distance' : 'Non renseigné')), ((L(s.lieuId) || {}).secteur || (s.modalite === 'distance' ? 'À distance' : 'Non renseigné'))]];
+    for (const [g, k, nm] of targets) { const e = ent(r[g], k, nm); if (active) { e.prev++; e.hPrev += h; } if (done) { e.real++; e.hReal += hr; } if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
+    const who = effective(s).length ? effective(s) : [''];
+    for (const a of who) { const e = ent(r.anim, a || '-', a ? animName(a) : 'Non attribué'); if (active) { e.prev++; e.hPrev += h; } if (done) { e.real++; e.hReal += hr; } if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
+    const m = s.date.slice(0, 7); r.mois[m] ||= Object.fromEntries(STATUTS.map(x => [x.id, 0])); r.mois[m][s.statut]++;
+  }
+  r.taux = r.prevus ? r.presents / r.prevus : null;
+  return r;
+}
+
+/* ===== Export des sessions ===== */
+const MODAL = { presentiel: 'Présentiel', distance: 'À distance' };
+const SESSION_COLS = ['Date', 'Début', 'Fin', 'Durée prévue (h)', 'Durée réelle (h)', 'Année', 'Intitulé', 'Type', 'Thème / produit', 'Statut', 'Modalité', 'Lieu', 'Secteur', 'Titulaire', 'Suppléant', 'Suppléant intervenu', 'Coanimateurs', 'Équipe', 'Demandeur', 'Participants prévus', 'Participants présents', 'Commentaire', 'Motif annulation/report', 'Nouvelle date'];
+function sessionRow(s) {
+  const d = x => x ? parseISO(x) : null;
+  return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
+}
+const sortedSessions = l => [...l].sort((a, b) => (a.date + (a.debut || '')) < (b.date + (b.debut || '')) ? -1 : 1);
+function icsFor(list) {
+  const e = s => String(s).replace(/[\;,]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Formidable//FR', 'CALSCALE:GREGORIAN'];
+  for (const s of list) {
+    const d = s.date.replace(/-/g, '');
+    lines.push('BEGIN:VEVENT', `UID:${s.id}@formidable`, `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d+/g, '')}`);
+    if (s.debut) { const end = s.fin || (() => { const m = t2m(s.debut) + Math.round((s.duree || 1) * 60); return pad(Math.floor(m / 60) % 24) + ':' + pad(m % 60); })(); lines.push(`DTSTART:${d}T${s.debut.replace(':', '')}00`, `DTEND:${d}T${end.replace(':', '')}00`); }
+    else lines.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${addDays(s.date, 1).replace(/-/g, '')}`);
+    lines.push(`SUMMARY:${e((s.titre || typeName(s.typeId)) + (s.statut === 'annulee' ? ' (annulée)' : ''))}`, `LOCATION:${e(lieuName(s) + (s.modalite === 'distance' && s.lienVisio ? ' ' + s.lienVisio : ''))}`, `DESCRIPTION:${e([`Type : ${typeName(s.typeId)}`, `Statut : ${ST[s.statut].label}`, `Titulaire : ${animName(s.titulaireId)}`, s.suppleantId ? `Suppléant : ${animName(s.suppleantId)}` : '', s.commentaire].filter(Boolean).join('\n'))}`, 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR'); return new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+}
+
+/* ===== Import du planning Excel « Néo » ===== */
+function excelDate(v) {
+  if (typeof v === 'number' && v > 30000) { const d = new Date(Math.round((v - 25569) * 86400) * 1000); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; }
+  if (typeof v === 'string') { const m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(v.trim()); if (m) return `${m[3]}-${pad(m[2])}-${pad(m[1])}`; if (/^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return v.trim(); }
+  return null;
+}
+function excelHours(v) {
+  if (typeof v === 'number') return v < 1 ? Math.round(v * 1440) / 60 : v <= 24 ? v : null;
+  if (typeof v === 'string') { const m = /^(\d{1,2})\s*[h:]\s*(\d{0,2})/i.exec(v.trim()); if (m) return +m[1] + (+m[2] || 0) / 60; const n = parseFloat(v.replace(',', '.')); return isNaN(n) ? null : n; }
+  return null;
+}
+const cleanName = s => String(s ?? '').replace(/\s+/g, ' ').trim();
+const lieuKey = s => norm(s).replace(/\bst\b/g, 'saint').replace(/\bstes?\b/g, 'sainte').replace(/\baiguilles\b/g, 'aiguille').replace(/\b(de|du|des|d|la|le|les)\b/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** Analyse un classeur au format « Planning formation » → { sessions, notes, warnings } (références par nom, résolues à l'application) */
+function parseNeo(sheets) {
+  const out = { rows: [], notes: [], warn: [] };
+  for (const sh of sheets) {
+    const blocks = [];
+    for (let r = 1; r <= sh.maxRow; r++) {
+      if (norm(sh.get(r, 3)) !== 'salles') continue;
+      const b = { sheet: sh.name, roomRow: r, dateRow: r - 1, year: sh.get(r, 2) };
+      for (let rr = r + 1; rr <= r + 8; rr++) {
+        const lab = norm(sh.get(rr, 2) ?? sh.get(rr, 3));
+        if (lab === 'animateurs') break;
+        if (lab.startsWith('type')) b.typeRow = rr; else if (lab.startsWith('duree')) b.dureeRow = rr; else if (lab.includes('titulaire')) b.titRow = rr; else if (lab.includes('suppleant')) b.suppRow = rr;
+      }
+      blocks.push(b);
+    }
+    if (!blocks.length) { out.warn.push(`Feuille « ${sh.name} » ignorée : aucun bloc « Salles » reconnu.`); continue; }
+    for (const b of blocks) {
+      b.cols = {};
+      for (let c = 4; c <= sh.maxCol; c++) {
+        const date = excelDate(sh.get(b.dateRow, c)); if (!date) continue;
+        const room = cleanName(sh.get(b.roomRow, c));
+        const cancelled = norm(room).includes('annul');
+        const row = { date, lieu: cancelled ? '' : room, annulee: cancelled, type: cleanName(sh.get(b.typeRow, c)), duree: excelHours(sh.get(b.dureeRow, c)), titulaire: cleanName(sh.get(b.titRow, c)), suppleant: cleanName(sh.get(b.suppRow, c)), commentaire: '', ref: `${sh.name}!${colName(c)}${b.roomRow}` };
+        b.cols[c] = row; out.rows.push(row);
+      }
+      b.rowsAnim = [];
+    }
+    for (const cm of sh.comments) {
+      const blk = blocks.find(b => b.roomRow === cm.r && b.cols[cm.c]);
+      if (blk) { blk.cols[cm.c].commentaire = cm.text; continue; }
+      const name = cleanName(sh.get(cm.r, cm.c));
+      if (name) out.notes.push({ name, text: cm.text });
+    }
+  }
+  return out;
+}
+
+/** Applique l'import (retourne un compte rendu). opts: { pastDone, skipDup } */
+function applyNeo(parsed, opts) {
+  const rep = { added: 0, dup: 0, newAnim: [], newLieu: [], newType: [], lieuMap: {} };
+  const findLieu = raw => {
+    const k = lieuKey(raw); if (!k) return null;
+    let best = null, bd = 99;
+    for (const l of DB.lieux) for (const nm of [l.name, ...(l.aliases || [])]) { const kk = lieuKey(nm), d = k === kk ? 0 : lev(k, kk); if (d < bd) { bd = d; best = l; } }
+    if (best && bd <= Math.max(1, Math.floor(k.length / 12))) return best;
+    return null;
+  };
+  const getLieu = raw => {
+    let l = findLieu(raw);
+    if (!l) { l = stamp({ id: uid(), name: raw, kind: /agence/i.test(raw) ? 'agence' : 'salle', adresse: '', secteur: '', lien: '', aliases: [] }); DB.lieux.push(l); rep.newLieu.push(raw); }
+    else if (l.name !== raw && !(l.aliases || []).includes(raw) && norm(l.name) !== norm(raw)) { (l.aliases ||= []).push(raw); stamp(l); }
+    (rep.lieuMap[l.name] ||= new Set()).add(raw);
+    return l;
+  };
+  const getAnim = raw => { if (!raw) return ''; let a = DB.animateurs.find(x => norm(x.name) === norm(raw)); if (!a) { a = stamp({ id: uid(), name: raw, equipe: '', email: '', actif: true, note: '' }); DB.animateurs.push(a); rep.newAnim.push(raw); } return a.id; };
+  const getType = raw => { if (!raw) return ''; let t = DB.settings.types.find(x => norm(x.name) === norm(raw)); if (!t) { t = { id: uid(), name: raw, color: PALETTE[DB.settings.types.length % PALETTE.length] }; DB.settings.types.push(t); touchSettings(); rep.newType.push(raw); } return t.id; };
+  const t0 = today();
+  for (const r of parsed.rows) {
+    const typeId = getType(r.type), lieu = r.lieu ? getLieu(r.lieu) : null, tit = getAnim(r.titulaire), sup = getAnim(r.suppleant);
+    if (opts.skipDup && DB.sessions.some(s => s.date === r.date && s.typeId === typeId && s.lieuId === (lieu ? lieu.id : '') && s.titulaireId === tit)) { rep.dup++; continue; }
+    const statut = r.annulee ? 'annulee' : (opts.pastDone && r.date < t0 ? 'realisee' : 'planifiee');
+    const duree = r.duree ?? (typeId && /specifica/i.test(typeName(typeId)) ? 3.5 : 7);
+    const s = newSession({ date: r.date, typeId, titre: typeName(typeId) + (lieu ? ' – ' + lieu.name : ''), duree: r.annulee && r.duree == null ? 0 : duree, dureeReelle: statut === 'realisee' ? duree : null, statut, lieuId: lieu ? lieu.id : '', titulaireId: tit, suppleantId: sup, commentaire: r.commentaire, motif: r.annulee ? 'Session annulée (mention du fichier Excel d\'origine)' : '', decisionPar: r.annulee ? (S.user ? S.user.name : '') : '', origine: 'Import Excel ' + r.ref });
+    stamp(s); DB.sessions.push(s); logH('Création', s, 'Import du planning Excel'); rep.added++;
+  }
+  for (const n of parsed.notes) { const a = DB.animateurs.find(x => norm(x.name) === norm(n.name)); if (a && !(a.note || '').includes(n.text)) { a.note = ((a.note ? a.note + '\n' : '') + n.text); stamp(a); } }
+  return rep;
+}
+
+/* ===== Composants d'interface ===== */
+const opts = (list, sel, ph) => (ph !== undefined ? `<option value="">${esc(ph)}</option>` : '') + list.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}"${String(v) === String(sel ?? '') ? ' selected' : ''}>${esc(l)}</option>`; }).join('');
+const typeOpts = () => DB.settings.types.map(t => [t.id, t.name]);
+const animOpts = (all) => DB.animateurs.filter(a => all || a.actif !== false).sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(a => [a.id, a.name]);
+const lieuOpts = () => [...DB.lieux].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(l => [l.id, l.name]);
+const statutBadge = id => `<span class="badge" style="--c:${ST[id].color}"><i>${ST[id].glyph}</i> ${ST[id].label}</span>`;
+const typeDot = id => `<span class="dot" style="background:${(T(id) || {}).color || '#888'}"></span>`;
+const first = n => (n || '').split(' ')[0];
+
+function toast(msg, kind) { const t = document.createElement('div'); t.className = 'toast ' + (kind || ''); t.textContent = msg; $('#toasts').appendChild(t); setTimeout(() => t.remove(), kind === 'err' ? 7000 : 3500); }
+function modal(html, cls = '') { closeModal(); const m = document.createElement('div'); m.className = 'overlay'; m.innerHTML = `<div class="modal ${cls}" role="dialog" aria-modal="true">${html}</div>`; document.body.appendChild(m); m.addEventListener('mousedown', e => { if (e.target === m && !m.dataset.sticky) closeModal(); }); const f = $('input:not([disabled]):not([type=hidden]),select:not([disabled])', m); if (f && !cls.includes('nofocus')) f.focus(); return m; }
+function closeModal() { $$('.overlay').forEach(m => m.remove()); }
+function confirmBox(msg, ok = 'Confirmer', danger) { return new Promise(res => { const m = modal(`<div class="mbody"><p>${esc(msg)}</p></div><div class="mfoot"><button class="btn" data-x="0">Annuler</button><button class="btn ${danger ? 'danger' : 'primary'}" data-x="1">${esc(ok)}</button></div>`, 'small'); m.addEventListener('click', e => { const b = e.target.closest('[data-x]'); if (b) { closeModal(); res(b.dataset.x === '1'); } }); }); }
+
+/* ===== Barre de filtres ===== */
+function filterBar(period = true) {
+  const f = S.f, sel = (k, ph, list) => `<select data-f="${k}" aria-label="${ph}">${opts(list, f[k], ph)}</select>`;
+  const years = [...new Set([...DB.sessions.map(s => s.date.slice(0, 4)), String(new Date().getFullYear())])].sort();
+  const secteurs = [...new Set(DB.lieux.map(l => l.secteur).filter(Boolean))].sort();
+  return `<div class="filters">
+    ${period ? `<label class="fl">Année <select data-f="year">${opts(years, f.year, 'Toutes')}</select></label>
+    <label class="fl">Du <input type="date" data-f="from" value="${f.from || ''}"></label><label class="fl">Au <input type="date" data-f="to" value="${f.to || ''}"></label>` : ''}
+    ${sel('type', 'Tous les types', typeOpts())}${DB.settings.themes.length ? sel('theme', 'Tous les thèmes', DB.settings.themes) : ''}
+    ${sel('anim', 'Tous les animateurs', animOpts(true))}${DB.settings.equipes.length ? sel('equipe', 'Toutes les équipes', DB.settings.equipes) : ''}
+    ${sel('lieu', 'Tous les lieux', lieuOpts())}${secteurs.length ? sel('secteur', 'Tous les secteurs', secteurs) : ''}
+    ${sel('statut', 'Tous les statuts', STATUTS.map(s => [s.id, s.label]))}${sel('modalite', 'Présentiel + distance', Object.entries(MODAL))}
+    <input type="search" data-f="q" placeholder="Rechercher…" value="${esc(f.q || '')}" aria-label="Rechercher">
+    <button class="btn ghost" data-act="resetf">Réinitialiser</button></div>`;
+}
+
+/* ===== Tableau de bord ===== */
+function bars(items, fmt = v => v, color = 'var(--accent)') {
+  const max = Math.max(1, ...items.map(i => i.v));
+  return `<div class="bars">${items.map(i => `<div class="bar"><span class="bl" title="${esc(i.name)}">${esc(i.name)}</span><span class="bt"><span style="width:${Math.max(2, i.v / max * 100)}%;background:${i.color || color}"></span></span><span class="bv">${fmt(i.v)}</span></div>`).join('') || '<p class="muted">Aucune donnée.</p>'}</div>`;
+}
+function periodLabel() { const f = S.f; if (f.from || f.to) return `Du ${fmtShort(f.from) || '…'} au ${fmtShort(f.to) || '…'}`; return f.year ? `Année ${f.year}` : 'Toutes périodes'; }
+function viewDashboard() {
+  const list = filtered(), r = stats(list), t = today();
+  const kpi = (v, l, sub, c) => `<div class="kpi"${c ? ` style="--c:${c}"` : ''}><b>${v}</b><span>${l}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
+  const rows = o => Object.values(o).sort((a, b) => b.hReal - a.hReal || b.hPrev - a.hPrev || b.prev - a.prev);
+  const tbl = (title, data, first) => `<div class="card"><h3>${title}</h3><div class="scroll"><table class="tbl"><thead><tr><th>${first}</th><th class="n">Sessions prévues</th><th class="n">Réalisées</th><th class="n">Annulées</th><th class="n">Reportées</th><th class="n">Heures prévues</th><th class="n">Heures réalisées</th></tr></thead><tbody>${data.map(e => `<tr><td>${esc(e.name)}</td><td class="n">${e.prev}</td><td class="n">${e.real}</td><td class="n">${e.ann}</td><td class="n">${e.rep}</td><td class="n">${fmtH(e.hPrev)}</td><td class="n"><b>${fmtH(e.hReal)}</b></td></tr>`).join('') || '<tr><td colspan="7" class="muted">Aucune donnée.</td></tr>'}</tbody></table></div></div>`;
+  const months = Object.keys(r.mois).sort(), mmax = Math.max(1, ...months.map(m => sum(Object.values(r.mois[m]))));
+  const stack = ['realisee', 'confirmee', 'planifiee', 'a_planifier', 'reportee', 'annulee'];
+  const chart = months.length ? `<div class="mchart">${months.map(m => `<div class="mcol" title="${cap(fmtDate(m + '-01', { month: 'long', year: 'numeric' }))}"><div class="mstack" style="height:${sum(Object.values(r.mois[m])) / mmax * 100}%">${stack.filter(k => r.mois[m][k]).map(k => `<span style="flex:${r.mois[m][k]};background:${ST[k].color}" title="${ST[k].label} : ${r.mois[m][k]}">${r.mois[m][k]}</span>`).join('')}</div><em>${fmtDate(m + '-01', { month: 'short' })}${S.f.year ? '' : ' ' + m.slice(2, 4)}</em></div>`).join('')}</div>` : '<p class="muted">Aucune donnée.</p>';
+  const al = computeAlerts().filter(a => a.sev === 'warn' && filtered([DB.sessions.find(s => s.id === a.sid)]).length).length;
+  return `<div class="page-h"><div><h1>Tableau de bord</h1><p class="muted">${esc(periodLabel())}${DB.settings.org ? ' · ' + esc(DB.settings.org) : ''} · ${list.length} session${list.length > 1 ? 's' : ''} correspondant aux filtres</p></div>
+    <div class="actions noprint">${can.exp() ? '<button class="btn" data-act="exportBilan">Exporter le bilan (Excel)</button>' : ''}<button class="btn" data-act="print">Imprimer / PDF</button></div></div>
+    ${filterBar()}
+    <div class="kpis">
+      ${kpi(r.n, 'Sessions au total', `dont ${r.st.reportee} reportée(s), ${r.st.annulee} annulée(s)`)}
+      ${kpi(r.st.a_planifier + r.st.planifiee + r.st.confirmee, 'À venir / en attente', `${r.st.a_planifier} à planifier · ${r.st.planifiee} planifiées · ${r.st.confirmee} confirmées`, ST.planifiee.color)}
+      ${kpi(r.st.realisee, 'Sessions réalisées', '', ST.realisee.color)}
+      ${kpi(r.st.reportee, 'Reportées', '', ST.reportee.color)}
+      ${kpi(r.st.annulee, 'Annulées', 'exclues des heures', ST.annulee.color)}
+      ${kpi(fmtH(r.hReal), 'Heures réalisées', 'sessions réalisées uniquement', ST.realisee.color)}
+      ${kpi(fmtH(r.hPlan), 'Heures planifiées', 'hors annulées et reportées')}
+      ${kpi(r.prevus || '—', 'Participants prévus', 'sessions réalisées')}
+      ${kpi(r.partN ? r.presents : '—', 'Participants présents', '')}
+      ${kpi(r.taux === null ? '—' : Math.round(r.taux * 100) + ' %', 'Taux de participation', 'présents / prévus')}
+      ${kpi(al, 'Alertes à traiter', '<a href="#" data-act="goto" data-v="alertes">voir les alertes</a>', al ? ST.reportee.color : '')}
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Sessions par mois</h3>${chart}<div class="legend">${stack.map(k => `<span><i style="background:${ST[k].color}"></i>${ST[k].label}</span>`).join('')}</div></div>
+      <div class="card"><h3>Heures réalisées par animateur</h3>${bars(rows(r.anim).filter(e => e.hReal || e.hPrev).map(e => ({ name: e.name, v: e.hReal, color: 'var(--accent)' })), fmtH)}</div>
+      <div class="card"><h3>Sessions par type de formation</h3>${bars(Object.entries(r.type).map(([id, e]) => ({ name: e.name, v: e.prev, color: (T(id) || {}).color })).sort((a, b) => b.v - a.v), v => v)}</div>
+      <div class="card"><h3>Répartition par lieu / agence</h3>${bars(Object.values(r.lieu).map(e => ({ name: e.name, v: e.prev })).sort((a, b) => b.v - a.v).slice(0, 12), v => v)}</div>
+    </div>
+    ${tbl('Synthèse par animateur', rows(r.anim), 'Animateur')}
+    ${tbl('Synthèse par type de formation', rows(r.type), 'Type')}
+    ${tbl('Synthèse par secteur géographique', rows(r.secteur), 'Secteur')}
+    <p class="muted note">Règles : une session annulée ou reportée n'entre ni dans les heures planifiées ni dans les heures réalisées. Les heures réalisées utilisent la durée réelle saisie (à défaut, la durée prévue). Si le suppléant est intervenu, la session est comptée pour lui plutôt que pour le titulaire ; les coanimateurs sont comptés pour chaque session.</p>`;
+}
+
+/* ===== Planning (calendrier) ===== */
+function chip(s, long) {
+  const col = S.cal.color === 'type' ? (T(s.typeId) || {}).color : ST[s.statut].color;
+  return `<button class="chip${s.statut === 'annulee' ? ' cancelled' : ''}${s.statut === 'reportee' ? ' postponed' : ''}" style="--c:${col};--c2:${S.cal.color === 'type' ? ST[s.statut].color : ((T(s.typeId) || {}).color || '#888')}" data-act="open" data-id="${s.id}" title="${esc(ST[s.statut].label + ' · ' + (s.titre || typeName(s.typeId)))}">${s.debut ? `<b>${s.debut}</b> ` : ''}${esc(typeName(s.typeId))}${long ? ' · ' + esc(lieuName(s)) : ''} · ${esc(first(animName(s.titulaireId)) || '⚠ sans animateur')}</button>`;
+}
+function calNav() {
+  const c = S.cal, d = parseISO(c.date);
+  const title = { day: cap(fmtDate(c.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })), week: `Semaine du ${fmtDate(startOfWeek(c.date), { day: 'numeric', month: 'long' })} au ${fmtDate(addDays(startOfWeek(c.date), 6), { day: 'numeric', month: 'long', year: 'numeric' })}`, month: cap(fmtDate(c.date, { month: 'long', year: 'numeric' })), res: cap(fmtDate(c.date, { month: 'long', year: 'numeric' })), year: String(d.getFullYear()) }[c.mode];
+  return `<div class="calbar"><div class="seg">${[['day', 'Jour'], ['week', 'Semaine'], ['month', 'Mois'], ['year', 'Année'], ['res', 'Mois par ressource']].map(([k, l]) => `<button class="${c.mode === k ? 'on' : ''}" data-act="calmode" data-v="${k}">${l}</button>`).join('')}</div>
+  <div class="calnav"><button class="btn" data-act="calprev" aria-label="Précédent">‹</button><button class="btn" data-act="caltoday">Aujourd'hui</button><button class="btn" data-act="calnext" aria-label="Suivant">›</button><h2>${esc(title)}</h2></div>
+  <div class="calopt">${c.mode === 'res' ? `<label>Lignes <select data-c="group">${opts([['anim', 'Animateurs'], ['lieu', 'Lieux'], ['type', 'Types de formation']], c.group || 'anim')}</select></label>` : ''}<label>Couleur <select data-c="color">${opts([['statut', 'selon le statut'], ['type', 'selon le type']], c.color)}</select></label></div></div>`;
+}
+function viewPlanning() {
+  const c = S.cal, list = filtered(DB.sessions, { ...S.f, year: '', from: '', to: '' }), by = {};
+  list.forEach(s => (by[s.date] ||= []).push(s));
+  Object.values(by).forEach(a => a.sort((x, y) => (x.debut || '99') < (y.debut || '99') ? -1 : 1));
+  let body = '';
+  const t = today();
+  const dayCell = (iso, curMonth) => `<div class="day${iso === t ? ' today' : ''}${curMonth !== undefined && iso.slice(0, 7) !== curMonth ? ' other' : ''}${[0, 6].includes(parseISO(iso).getDay()) ? ' we' : ''}" ${can.edit() ? `data-act="new" data-date="${iso}"` : ''}><span class="dn">${+iso.slice(8)}</span>${(by[iso] || []).map(s => chip(s)).join('')}</div>`;
+  if (c.mode === 'month') {
+    const ym = c.date.slice(0, 7), s0 = startOfWeek(ym + '-01'); const days = Array.from({ length: 42 }, (_, i) => addDays(s0, i));
+    body = `<div class="mgrid">${['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'].map(d => `<div class="dh">${d}.</div>`).join('')}${days.slice(0, 35).concat(days[35].slice(0, 7) === ym ? days.slice(35) : []).map(d => dayCell(d, ym)).join('')}</div>`;
+  } else if (c.mode === 'week') {
+    const s0 = startOfWeek(c.date);
+    body = `<div class="wgrid">${Array.from({ length: 7 }, (_, i) => addDays(s0, i)).map(d => `<div class="wday${d === t ? ' today' : ''}"><h4>${cap(fmtDate(d, { weekday: 'long', day: 'numeric', month: 'short' }))}</h4>${(by[d] || []).map(s => chip(s, true)).join('') || '<p class="muted">—</p>'}${can.edit() ? `<button class="btn ghost sm" data-act="new" data-date="${d}">+ Session</button>` : ''}</div>`).join('')}</div>`;
+  } else if (c.mode === 'day') {
+    const ss = by[c.date] || [];
+    body = `<div class="dayview">${ss.map(s => `<div class="dcard" style="--c:${(T(s.typeId) || {}).color}" data-act="open" data-id="${s.id}"><div><b>${s.debut ? s.debut + (s.fin ? '–' + s.fin : '') : 'Horaires non renseignés'}</b> · ${fmtH(s.duree)}</div><h3>${esc(s.titre || typeName(s.typeId))}</h3><p>${typeDot(s.typeId)}${esc(typeName(s.typeId))}${s.theme ? ' · ' + esc(s.theme) : ''} · ${esc(lieuName(s) || 'Lieu à définir')}</p><p>Titulaire : <b>${esc(animName(s.titulaireId) || 'à désigner')}</b>${s.suppleantId ? ' · Suppléant : ' + esc(animName(s.suppleantId)) : ''}</p>${statutBadge(s.statut)}</div>`).join('') || '<p class="muted pad">Aucune session ce jour.</p>'}${can.edit() ? `<button class="btn" data-act="new" data-date="${c.date}">+ Nouvelle session ce jour</button>` : ''}</div>`;
+  } else if (c.mode === 'year') {
+    const y = parseISO(c.date).getFullYear();
+    body = `<div class="ygrid">${MONTHS.map((mn, m) => { const first = new Date(y, m, 1), s0 = startOfWeek(toISO(first)); const days = Array.from({ length: 42 }, (_, i) => addDays(s0, i)); const n = sum(Object.keys(by).filter(d => d.startsWith(`${y}-${pad(m + 1)}`)).map(d => by[d].length)); return `<div class="ymonth"><h4><a href="#" data-act="calgo" data-date="${y}-${pad(m + 1)}-01" data-v="month">${cap(mn)}</a> <small>${n ? n + ' session' + (n > 1 ? 's' : '') : ''}</small></h4><div class="ymini">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<i class="yh">${d}</i>`).join('')}${days.map(d => { const ss = by[d] || [], inM = d.slice(5, 7) === pad(m + 1); const col = ss.length ? (ss.some(s => s.statut === 'realisee') ? ST.realisee.color : ss.some(s => ['planifiee', 'confirmee', 'a_planifier'].includes(s.statut)) ? ST.planifiee.color : ST.annulee.color) : ''; return inM ? `<a href="#" class="yd${ss.length ? ' has' : ''}${d === t ? ' today' : ''}" ${col ? `style="--c:${col}"` : ''} data-act="calgo" data-date="${d}" data-v="day" title="${ss.map(s => esc(sessionLabel(s))).join('\n')}">${+d.slice(8)}</a>` : '<i></i>'; }).join('')}</div></div>`; }).join('')}</div>`;
+  } else {
+    const ym = c.date.slice(0, 7), nd = new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate(), g = c.group || 'anim';
+    const inMonth = list.filter(s => s.date.startsWith(ym));
+    const keys = g === 'anim' ? animOpts(true).map(([id, n]) => [id, n]) : g === 'lieu' ? [...lieuOpts(), ['dist', 'À distance']] : typeOpts();
+    const keyOf = s => g === 'anim' ? effective(s).concat(s.suppleantId && !s.suppIntervenu ? [] : []) : g === 'lieu' ? [s.modalite === 'distance' ? 'dist' : s.lieuId] : [s.typeId];
+    const rowsData = keys.map(([id, n]) => [id, n, inMonth.filter(s => keyOf(s).includes(id))]).filter(([, , ss]) => ss.length || g === 'anim');
+    const noAnim = g === 'anim' ? inMonth.filter(s => !s.titulaireId) : [];
+    if (noAnim.length) rowsData.push(['-', '⚠ Sans animateur', noAnim]);
+    body = `<div class="scroll"><table class="rgrid"><thead><tr><th class="rname"></th>${Array.from({ length: nd }, (_, i) => { const d = `${ym}-${pad(i + 1)}`; return `<th class="${[0, 6].includes(parseISO(d).getDay()) ? 'we' : ''}${d === t ? ' today' : ''}"><small>${['D', 'L', 'M', 'M', 'J', 'V', 'S'][parseISO(d).getDay()]}</small>${i + 1}</th>`; }).join('')}<th>Σ h</th></tr></thead><tbody>${rowsData.map(([id, n, ss]) => `<tr><th class="rname">${esc(n)}</th>${Array.from({ length: nd }, (_, i) => { const d = `${ym}-${pad(i + 1)}`, x = ss.filter(s => s.date === d); return `<td class="${[0, 6].includes(parseISO(d).getDay()) ? 'we' : ''}">${x.map(s => `<button class="rc${s.statut === 'annulee' ? ' cancelled' : ''}" style="--c:${S.cal.color === 'type' ? (T(s.typeId) || {}).color : ST[s.statut].color}" data-act="open" data-id="${s.id}" title="${esc(sessionLabel(s) + ' · ' + ST[s.statut].label)}">${esc((typeName(s.typeId)).slice(0, 3))}</button>`).join('')}</td>`; }).join('')}<td class="n">${fmtH(sum(ss.filter(s => ACTIVE.includes(s.statut)), dureeEff))}</td></tr>`).join('') || `<tr><td colspan="${nd + 2}" class="muted">Aucune session.</td></tr>`}</tbody></table></div>`;
+  }
+  const legend = S.cal.color === 'type' ? DB.settings.types.map(t => `<span><i style="background:${t.color}"></i>${esc(t.name)}</span>`).join('') : STATUTS.map(s => `<span><i style="background:${s.color}"></i>${s.label}</span>`).join('');
+  return `<div class="page-h"><div><h1>Planning</h1></div><div class="actions noprint">${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportIcs" title="Fichier calendrier (.ics) pour Outlook">Export calendrier</button>' : ''}</div></div>${filterBar(false)}${calNav()}<div class="legend">${legend}</div>${body}`;
+}
+
+/* ===== Liste des sessions ===== */
+function viewSessions() {
+  const list = filtered(), k = S.sort.k, d = S.sort.d;
+  const val = { date: s => s.date + (s.debut || ''), type: s => typeName(s.typeId), lieu: s => lieuName(s), tit: s => animName(s.titulaireId), duree: s => s.duree || 0, statut: s => STATUTS.findIndex(x => x.id === s.statut) }[k];
+  list.sort((a, b) => (val(a) < val(b) ? -1 : val(a) > val(b) ? 1 : 0) * d);
+  const alerts = computeAlerts(), warn = new Set(alerts.filter(a => a.sev === 'warn').map(a => a.sid));
+  const th = (key, l, cls = '') => `<th class="${cls}"><button class="sortb" data-act="sort" data-k="${key}">${l}${k === key ? (d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
+  return `<div class="page-h"><div><h1>Sessions</h1><p class="muted">${list.length} session${list.length > 1 ? 's' : ''} · ${fmtH(sum(list.filter(s => ACTIVE.includes(s.statut)), dureeEff))} (hors annulées/reportées)</p></div><div class="actions noprint">${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportSessions">Exporter (Excel)</button>' : ''}</div></div>${filterBar()}
+  <div class="scroll"><table class="tbl hover"><thead><tr>${th('date', 'Date')}<th>Horaires</th>${th('type', 'Formation')}${th('lieu', 'Lieu')}${th('tit', 'Titulaire')}<th>Suppléant</th>${th('duree', 'Durée', 'n')}<th class="n">Particip.</th>${th('statut', 'Statut')}<th></th></tr></thead><tbody>${list.map(s => `<tr data-act="open" data-id="${s.id}" tabindex="0"><td>${fmtDate(s.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</td><td>${s.debut ? s.debut + (s.fin ? '–' + s.fin : '') : '<span class="muted">—</span>'}</td><td>${typeDot(s.typeId)}<b>${esc(s.titre || typeName(s.typeId))}</b>${s.groupeId ? ' <span class="tag" title="Session d\'une action à sessions multiples">série</span>' : ''}<br><small class="muted">${esc(typeName(s.typeId))}${s.theme ? ' · ' + esc(s.theme) : ''}</small></td><td>${esc(lieuName(s)) || '<span class="muted">—</span>'}</td><td>${esc(animName(s.titulaireId)) || '<span class="warnt">à désigner</span>'}</td><td>${esc(animName(s.suppleantId)) || '<span class="muted">—</span>'}</td><td class="n">${fmtH(dureeEff(s))}</td><td class="n">${s.presents != null ? s.presents : '–'} / ${s.prevus != null ? s.prevus : '–'}</td><td>${statutBadge(s.statut)}</td><td>${warn.has(s.id) ? '<span class="warnt" title="Alerte : voir l\'onglet Alertes">⚠</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="10" class="muted pad">Aucune session ne correspond aux filtres.</td></tr>'}</tbody></table></div>`;
+}
+
+/* ===== Alertes & historique ===== */
+function viewAlertes() {
+  const al = computeAlerts(), groups = { warn: 'À traiter', info: 'Informations', rappel: 'Rappels à venir' };
+  return `<div class="page-h"><div><h1>Alertes</h1><p class="muted">Calculées en direct sur l'ensemble des sessions. Rappels : sessions dans les ${DB.settings.alertDays} prochains jours.</p></div></div>` + Object.entries(groups).map(([sev, label]) => { const items = al.filter(a => a.sev === sev); return `<div class="card"><h3>${label} <span class="tag">${items.length}</span></h3>${items.map(a => { const s = DB.sessions.find(x => x.id === a.sid); return `<div class="alert ${sev}" data-act="open" data-id="${s.id}" tabindex="0"><b>${esc(a.kind)}</b> <span>${esc(sessionLabel(s))}</span><em>${esc(a.msg)}</em></div>`; }).join('') || '<p class="muted">Rien à signaler.</p>'}</div>`; }).join('');
+}
+function viewHistorique() {
+  const q = norm(S.hq || ''), h = [...DB.history].reverse().filter(x => !q || norm([x.user, x.label, x.action, x.detail].join(' ')).includes(q)).slice(0, 500);
+  return `<div class="page-h"><div><h1>Historique des modifications</h1><p class="muted">Journal de toutes les créations, modifications, changements de statut et d'animateur.</p></div><div class="actions noprint"><input type="search" data-hq placeholder="Rechercher (personne, session, statut…)" value="${esc(S.hq || '')}">${can.exp() ? '<button class="btn" data-act="exportHist">Exporter (Excel)</button>' : ''}</div></div>
+  <div class="scroll"><table class="tbl"><thead><tr><th>Date / heure</th><th>Utilisateur</th><th>Action</th><th>Session</th><th>Détail</th></tr></thead><tbody>${h.map(x => `<tr><td>${new Date(x.ts).toLocaleString('fr-FR')}</td><td>${esc(x.user)}</td><td><span class="tag">${esc(x.action)}</span></td><td>${x.sid && DB.sessions.some(s => s.id === x.sid) ? `<a href="#" data-act="open" data-id="${x.sid}">${esc(x.label)}</a>` : esc(x.label)}</td><td class="pre">${esc(x.detail)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted pad">Aucun événement.</td></tr>'}</tbody></table></div>${DB.history.length > 500 ? '<p class="muted">Seuls les 500 derniers événements sont affichés ; l\'export contient tout.</p>' : ''}`;
+}
+
+/* ===== Fiche session ===== */
+function sessionForm(s, isNew) {
+  const full = can.edit(), own = can.own(s), ro = !(full || own);
+  const d = (ownOk) => (full || (own && ownOk)) ? '' : ' disabled';
+  const inp = (n, label, type = 'text', ownOk = false, extra = '') => `<label class="f"><span>${label}</span><input type="${type}" name="${n}" value="${esc(s[n] ?? '')}"${d(ownOk)} ${extra}></label>`;
+  const txt = (n, label, ownOk = false, rows = 2) => `<label class="f wide"><span>${label}</span><textarea name="${n}" rows="${rows}"${d(ownOk)}>${esc(s[n] ?? '')}</textarea></label>`;
+  const co = new Set(s.coanim || []);
+  const hist = DB.history.filter(h => h.sid === s.id).reverse();
+  const dec = ['annulee', 'reportee'].includes(s.statut);
+  return `<form id="sf" autocomplete="off"><div class="mhead"><h2>${isNew ? 'Nouvelle session' : esc(s.titre || typeName(s.typeId))}</h2>${isNew ? '' : statutBadge(s.statut)}<button type="button" class="x" data-act="close" aria-label="Fermer">✕</button></div>
+  <div class="mbody">
+  ${ro ? '<p class="info">Consultation uniquement.</p>' : (!full ? '<p class="info">Vous pouvez mettre à jour le statut, la durée réelle, les participants et les commentaires de vos interventions.</p>' : '')}
+  ${!isNew && conflictsFor(s).length ? `<p class="info warn">${conflictsFor(s).map(a => esc(a.msg)).join('<br>')}</p>` : ''}
+  <fieldset><legend>Informations générales</legend><div class="fg">
+    ${inp('titre', 'Intitulé de la formation')}
+    <label class="f"><span>Type de formation *</span><select name="typeId" required${d()}>${opts(typeOpts(), s.typeId, '— choisir —')}</select></label>
+    <label class="f"><span>Thème / produit</span><input name="theme" list="dl-themes" value="${esc(s.theme)}"${d()}><datalist id="dl-themes">${DB.settings.themes.map(t => `<option value="${esc(t)}">`).join('')}</datalist></label>
+    ${txt('objectif', 'Objectif de la formation')}
+    ${inp('date', 'Date *', 'date', false, 'required')}${inp('debut', 'Heure de début', 'time')}${inp('fin', 'Heure de fin', 'time')}
+    <label class="f"><span>Durée prévue (heures) <button type="button" class="lnk" data-act="calcDuree">calculer depuis les horaires</button></span><input type="number" name="duree" min="0" max="24" step="0.25" value="${s.duree ?? ''}"${d()}><span class="presets">${DB.settings.durees.map(x => `<button type="button" class="chipb" data-act="preset" data-h="${x.h}"${d()}>${esc(x.l)} (${x.h} h)</button>`).join('')}<small id="dureeFmt" class="muted"></small></span></label>
+    <label class="f"><span>Durée réelle (heures)</span><input type="number" name="dureeReelle" min="0" max="24" step="0.25" value="${s.dureeReelle ?? ''}"${d(true)}></label>
+    <label class="f"><span>Année de rattachement</span><input id="annee" value="${s.date ? s.date.slice(0, 4) : ''}" disabled></label>
+    <label class="f"><span>Statut *</span><select name="statut"${d(true)}>${opts(STATUTS.map(x => [x.id, x.label]), s.statut)}</select></label>
+  </div></fieldset>
+  <fieldset id="decision" class="${dec ? '' : 'hide'}"><legend>Annulation / report</legend><div class="fg">
+    ${inp('motif', 'Motif', 'text', true)}${inp('dateDecision', 'Date de la décision', 'date', true)}${inp('nouvelleDate', 'Nouvelle date prévue (si connue)', 'date', true)}
+    <label class="f"><span>Décision enregistrée par</span><input value="${esc(s.decisionPar || (S.user ? S.user.name : ''))}" disabled></label>
+    ${full ? `<label class="chk wide"><input type="checkbox" name="creerRemplacement" checked> Créer automatiquement la session de remplacement à la nouvelle date (statut « à planifier »)</label>` : ''}
+  </div></fieldset>
+  <fieldset><legend>Lieu</legend><div class="fg">
+    <label class="f"><span>Modalité</span><select name="modalite"${d()}>${opts(Object.entries(MODAL), s.modalite)}</select></label>
+    <label class="f lieu-p"><span>Agence, site ou salle</span><select name="lieuId"${d()}>${opts(lieuOpts(), s.lieuId, '— à définir —')}</select></label>
+    <label class="f lieu-d"><span>Lien de connexion</span><input name="lienVisio" value="${esc(s.lienVisio)}"${d(true)}></label>
+    ${inp('adresse', 'Précision d\'adresse / secteur')}
+  </div></fieldset>
+  <fieldset><legend>Animateurs</legend><div class="fg">
+    <label class="f"><span>Animateur titulaire</span><select name="titulaireId"${d()}>${opts(animOpts(), s.titulaireId, '— à désigner —')}${s.titulaireId && !A(s.titulaireId)?.actif === false ? '' : ''}</select></label>
+    <label class="f"><span>Animateur suppléant (en cas d'absence)</span><select name="suppleantId"${d()}>${opts(animOpts(), s.suppleantId, '— aucun —')}</select></label>
+    <label class="chk wide"><input type="checkbox" name="suppIntervenu"${s.suppIntervenu ? ' checked' : ''}${d(true)}> Le suppléant est intervenu à la place du titulaire (la session lui est alors comptée)</label>
+    <div class="f wide"><span>Coanimateur(s) éventuel(s)</span><div class="checks">${animOpts().map(([id, n]) => `<label class="chk"><input type="checkbox" name="coanim" value="${id}"${co.has(id) ? ' checked' : ''}${d()}> ${esc(n)}</label>`).join('') || '<small class="muted">Aucun animateur référencé.</small>'}</div></div>
+    ${inp('coanimRole', 'Rôle des coanimateurs (ex. co-animation DCO, binôme)')}
+  </div></fieldset>
+  <fieldset><legend>Public concerné</legend><div class="fg">
+    ${inp('caisse', 'Caisse / direction / secteur / unité')}${inp('agences', 'Agence ou groupe d\'agences')}${inp('demandeur', 'Demandeur')}
+    <label class="f"><span>Population concernée</span><input name="population" list="dl-pop" value="${esc(s.population)}"${d()}><datalist id="dl-pop">${DB.settings.populations.map(t => `<option value="${esc(t)}">`).join('')}</datalist></label>
+    ${inp('profil', 'Métier / profil des participants')}
+    ${inp('prevus', 'Participants prévus', 'number', true, 'min="0"')}${inp('presents', 'Participants présents', 'number', true, 'min="0"')}
+    ${txt('participants', 'Liste des participants (si nécessaire)', true, 3)}
+  </div></fieldset>
+  <fieldset><legend>Organisation et suivi</legend><div class="fg">
+    ${inp('dateDemande', 'Date de la demande', 'date')}${inp('origine', 'Personne / origine de la demande')}${inp('organisateur', 'Personne chargée de l\'organisation')}
+    ${txt('logistique', 'Besoins matériels ou logistiques')}${inp('support', 'Support de formation utilisé')}
+    <label class="f wide"><span>Documents associés (une ligne par document : <code>nom | chemin ou lien</code>)</span><textarea name="docs" rows="2" placeholder="Support Néo.pptx | \\\\serveur\\partage\\formations\\neo.pptx"${d(true)}>${esc((s.docs || []).map(x => x.nom + (x.lien ? ' | ' + x.lien : '')).join('\n'))}</textarea></label>
+    ${txt('commentaire', 'Commentaires', true, 3)}
+  </div></fieldset>
+  ${isNew ? `<fieldset><legend>Plusieurs sessions sur une même action</legend><label class="f wide"><span>Dates supplémentaires (une session identique sera créée à chaque date)</span><div class="adddates"><input type="date" id="xd"><button type="button" class="btn" data-act="addDate">Ajouter la date</button></div><div id="xdl" class="checks"></div></label></fieldset>` : ''}
+  ${!isNew && !ro ? '' : ''}
+  ${!isNew ? `<details><summary>Historique de cette session (${hist.length})</summary><ul class="hist">${hist.map(h => `<li><b>${new Date(h.ts).toLocaleString('fr-FR')}</b> · ${esc(h.user)} · <span class="tag">${esc(h.action)}</span><br><span class="pre">${esc(h.detail)}</span></li>`).join('') || '<li class="muted">Aucun événement.</li>'}</ul></details>` : ''}
+  </div>
+  <div class="mfoot">
+    ${!isNew && full ? '<button type="button" class="btn" data-act="dup">Dupliquer</button><button type="button" class="btn danger ghost" data-act="del">Supprimer</button>' : ''}
+    ${!isNew ? '<button type="button" class="btn ghost" data-act="mail" title="Ouvre votre messagerie avec un message pré-rempli">Prévenir par e-mail</button><button type="button" class="btn ghost" data-act="ics1">Fichier calendrier</button>' : ''}
+    ${!ro ? `<span class="sp"></span><button type="button" class="btn" data-act="quick" data-v="realisee">Confirmer la réalisation</button><button type="button" class="btn" data-act="quick" data-v="reportee">Reporter</button><button type="button" class="btn" data-act="quick" data-v="annulee">Annuler la session</button>` : '<span class="sp"></span>'}
+    <button type="button" class="btn" data-act="close">${ro ? 'Fermer' : 'Fermer sans enregistrer'}</button>${!ro ? '<button class="btn primary" type="submit">Enregistrer</button>' : ''}
+  </div></form>`;
+}
+
+/* ===== Échanges (import / export / partage) ===== */
+function viewEchanges() {
+  const imp = can.imp(), exp = can.exp();
+  const n = DB.sessions.length;
+  return `<div class="page-h"><div><h1>Import / Export / Partage</h1></div></div>
+  ${imp ? `<div class="card"><h3>Importer le planning Excel existant</h3><p>Sélectionnez le fichier <b>Planning formation NéoV2</b> (.xlsx). Il est lu <b>localement dans votre navigateur</b> : rien n'est envoyé nulle part. Un aperçu s'affiche avant toute écriture.</p><input type="file" id="xlsxIn" accept=".xlsx"><div id="impPreview"></div></div>` : ''}
+  ${exp ? `<div class="card"><h3>Exports Excel</h3><p class="muted">Les exports tiennent compte des filtres en cours (onglets Tableau de bord / Sessions) : ${filtered().length} session(s) sur ${n}. Pensez à réinitialiser les filtres pour tout exporter.</p>
+    <div class="actions wrap"><button class="btn" data-act="exportSessions">Toutes les sessions filtrées</button><button class="btn" data-act="exportBilan">Bilan d'activité (synthèses + sessions)</button><button class="btn" data-act="exportBy" data-v="anim">Planning par animateur</button><button class="btn" data-act="exportBy" data-v="lieu">Planning par lieu / agence</button><button class="btn" data-act="exportBy" data-v="type">Planning par type de formation</button><button class="btn" data-act="exportIcs">Calendrier (.ics)</button></div></div>` : ''}
+  ${can.imp() ? `<div class="card"><h3>Fichier de données partagé</h3>
+    <p>Les données vivent dans le navigateur de chaque poste. Pour travailler à plusieurs, liez l'application à <b>un fichier .json placé sur un dossier partagé</b> de l'entreprise : chaque modification y est enregistrée et fusionnée automatiquement avec celles des collègues (même session modifiée par deux personnes : la plus récente l'emporte). Les droits d'accès au dossier protègent les données.</p>
+    ${FS_OK ? `<p>État : ${FS.h ? `<b>lié à ${esc(FS.h.name)}</b>` : '<b>aucun fichier lié</b> (données locales à ce navigateur)'}</p><div class="actions wrap"><button class="btn primary" data-act="fslink" data-v="new">Créer le fichier partagé…</button><button class="btn" data-act="fslink" data-v="open">Ouvrir un fichier existant…</button>${FS.h ? '<button class="btn danger ghost" data-act="fsunlink">Délier</button>' : ''}</div>` : '<p class="info warn">Cette fonction nécessite Chrome ou Edge. Avec un autre navigateur, utilisez les sauvegardes ci-dessous.</p>'}</div>
+  <div class="card"><h3>Sauvegarde et restauration</h3><p>Copie complète de l'application (sessions, référentiels, utilisateurs, historique). Il est recommandé de protéger la sauvegarde par un mot de passe (chiffrement AES-256).</p>
+    <div class="actions wrap"><label class="f inl"><span>Mot de passe (facultatif)</span><input type="password" id="bkpw" autocomplete="new-password"></label><button class="btn" data-act="backup">Télécharger la sauvegarde</button><label class="btn">Restaurer une sauvegarde…<input type="file" id="restoreIn" accept=".json" hidden></label></div></div>` : ''}`;
+}
+
+/* ===== Paramètres ===== */
+function viewSettings() {
+  const tabs = [['types', 'Types de formation'], ['lieux', 'Lieux'], ['animateurs', 'Animateurs'], ['listes', 'Thèmes, équipes, populations'], ['durees', 'Durées types']].concat(can.admin() ? [['users', 'Utilisateurs & droits'], ['general', 'Général']] : []);
+  const tab = tabs.some(t => t[0] === S.setTab) ? S.setTab : 'types';
+  const used = { type: id => DB.sessions.filter(s => s.typeId === id).length, lieu: id => DB.sessions.filter(s => s.lieuId === id).length, anim: id => DB.sessions.filter(s => involved(s).includes(id)).length };
+  let body = '';
+  if (tab === 'types') body = `<p class="muted">Ajoutez librement de nouveaux types de formation : aucune évolution technique n'est nécessaire.</p><table class="tbl"><thead><tr><th>Couleur</th><th>Type</th><th class="n">Sessions</th><th></th></tr></thead><tbody>${DB.settings.types.map(t => `<tr><td><span class="dot big" style="background:${t.color}"></span></td><td>${esc(t.name)}</td><td class="n">${used.type(t.id)}</td><td class="r"><button class="btn sm" data-act="edit" data-k="type" data-id="${t.id}">Modifier</button> <button class="btn sm danger ghost" data-act="rm" data-k="type" data-id="${t.id}">Supprimer</button></td></tr>`).join('')}</tbody></table><button class="btn primary" data-act="edit" data-k="type">+ Type de formation</button>`;
+  if (tab === 'lieux') body = `<p class="muted">Liste harmonisée : un lieu = un nom unique. Les variantes d'orthographe (alias) sont rattachées au lieu principal ; utilisez <b>Fusionner</b> pour regrouper des doublons.</p><div class="scroll"><table class="tbl"><thead><tr><th>Lieu</th><th>Nature</th><th>Adresse</th><th>Secteur</th><th>Alias</th><th class="n">Sessions</th><th></th></tr></thead><tbody>${[...DB.lieux].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(l => `<tr><td>${esc(l.name)}</td><td>${{ salle: 'Salle', agence: 'Agence', site: 'Site' }[l.kind] || ''}</td><td>${esc(l.adresse)}</td><td>${esc(l.secteur)}</td><td><small>${esc((l.aliases || []).join(' · '))}</small></td><td class="n">${used.lieu(l.id)}</td><td class="r"><button class="btn sm" data-act="edit" data-k="lieu" data-id="${l.id}">Modifier</button> <button class="btn sm" data-act="merge" data-k="lieu" data-id="${l.id}">Fusionner</button> <button class="btn sm danger ghost" data-act="rm" data-k="lieu" data-id="${l.id}">Supprimer</button></td></tr>`).join('') || '<tr><td colspan="7" class="muted">Aucun lieu.</td></tr>'}</tbody></table></div><button class="btn primary" data-act="edit" data-k="lieu">+ Lieu</button>`;
+  if (tab === 'animateurs') body = `<div class="scroll"><table class="tbl"><thead><tr><th>Nom</th><th>Équipe / unité</th><th>E-mail</th><th>Actif</th><th class="n">Sessions</th><th></th></tr></thead><tbody>${[...DB.animateurs].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(a => `<tr><td>${esc(a.name)}${a.note ? `<br><small class="muted pre">${esc(a.note)}</small>` : ''}</td><td>${esc(a.equipe)}</td><td>${esc(a.email)}</td><td>${a.actif === false ? 'Non' : 'Oui'}</td><td class="n">${used.anim(a.id)}</td><td class="r"><button class="btn sm" data-act="edit" data-k="anim" data-id="${a.id}">Modifier</button> <button class="btn sm" data-act="merge" data-k="anim" data-id="${a.id}">Fusionner</button> <button class="btn sm danger ghost" data-act="rm" data-k="anim" data-id="${a.id}">Supprimer</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Aucun animateur.</td></tr>'}</tbody></table></div><button class="btn primary" data-act="edit" data-k="anim">+ Animateur</button>`;
+  if (tab === 'listes') body = [['themes', 'Thèmes / produits'], ['equipes', 'Équipes / unités'], ['populations', 'Populations concernées']].map(([k, l]) => `<div class="card"><h3>${l}</h3><div class="checks">${DB.settings[k].map((v, i) => `<span class="tag lg">${esc(v)} <button class="lnk" data-act="listren" data-k="${k}" data-i="${i}">modifier</button> <button class="lnk" data-act="listdel" data-k="${k}" data-i="${i}">retirer</button></span>`).join('') || '<small class="muted">Liste vide.</small>'}</div><div class="adddates"><input id="add-${k}" placeholder="Nouvelle valeur"><button class="btn" data-act="listadd" data-k="${k}">Ajouter</button></div></div>`).join('');
+  if (tab === 'durees') body = `<p class="muted">Raccourcis proposés dans la fiche session (ex. demi-journée = 3 h, journée = 7 h). La durée reste libre.</p><table class="tbl"><thead><tr><th>Libellé</th><th class="n">Heures</th><th></th></tr></thead><tbody>${DB.settings.durees.map((x, i) => `<tr><td>${esc(x.l)}</td><td class="n">${x.h}</td><td class="r"><button class="btn sm" data-act="edit" data-k="duree" data-id="${i}">Modifier</button> <button class="btn sm danger ghost" data-act="rm" data-k="duree" data-id="${i}">Supprimer</button></td></tr>`).join('')}</tbody></table><button class="btn primary" data-act="edit" data-k="duree">+ Durée type</button>`;
+  if (tab === 'users') body = `<p class="info">Les profils servent à adapter l'écran à chacun (qui peut modifier, exporter, paramétrer). Ils ne constituent pas une protection cryptographique : les données sont stockées dans le navigateur ou dans le fichier partagé, dont l'accès doit être protégé par les droits du dossier réseau.</p><table class="tbl"><thead><tr><th>Nom</th><th>Profil</th><th>Animateur lié</th><th>Code</th><th></th></tr></thead><tbody>${DB.users.map(u => `<tr><td>${esc(u.name)}</td><td>${ROLES[u.role]}</td><td>${esc(animName(u.animateurId))}</td><td>${u.pin ? 'oui' : '<span class="warnt">aucun</span>'}</td><td class="r"><button class="btn sm" data-act="edit" data-k="user" data-id="${u.id}">Modifier</button> <button class="btn sm danger ghost" data-act="rm" data-k="user" data-id="${u.id}">Supprimer</button></td></tr>`).join('')}</tbody></table><button class="btn primary" data-act="edit" data-k="user">+ Utilisateur</button>
+    <table class="tbl" style="margin-top:1.5rem"><caption>Droits par profil</caption><thead><tr><th>Profil</th><th>Droits</th></tr></thead><tbody><tr><td>Administrateur</td><td>Tout : paramétrage, utilisateurs, sessions, import/export, sauvegardes</td></tr><tr><td>Gestionnaire</td><td>Création/modification/suppression des sessions, référentiels (types, lieux, animateurs), import Excel, exports, fichier partagé</td></tr><tr><td>Animateur</td><td>Consultation ; mise à jour de ses propres interventions (statut, durée réelle, participants, commentaires, documents)</td></tr><tr><td>Manager / pilote</td><td>Consultation, tableaux de bord, historique, exports</td></tr><tr><td>Lecteur</td><td>Consultation uniquement</td></tr></tbody></table>`;
+  if (tab === 'general') body = `<div class="card"><label class="f"><span>Nom de l'équipe / entité (affiché sur les bilans)</span><input id="set-org" value="${esc(DB.settings.org)}"></label><label class="f"><span>Rappel avant session (jours)</span><input id="set-days" type="number" min="1" max="60" value="${DB.settings.alertDays}"></label><button class="btn primary" data-act="saveGeneral">Enregistrer</button></div><div class="card"><h3>Zone sensible</h3><p>Efface <b>toutes</b> les données de ce navigateur (sessions, référentiels, utilisateurs).</p><button class="btn danger" data-act="wipe">Réinitialiser l'application…</button></div>`;
+  return `<div class="page-h"><div><h1>Paramètres</h1></div></div><div class="seg tabs">${tabs.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-act="settab" data-v="${k}">${l}</button>`).join('')}</div><div class="card">${body}</div>`;
+}
+
+/* ===== Rendu général ===== */
+const NAV = [['dashboard', 'Tableau de bord', () => true], ['planning', 'Planning', () => true], ['sessions', 'Sessions', () => true], ['alertes', 'Alertes', () => true], ['historique', 'Historique', () => can.hist()], ['echanges', 'Import / Export', () => can.imp() || can.exp()], ['settings', 'Paramètres', () => can.refs()]];
+const VIEWS = { dashboard: viewDashboard, planning: viewPlanning, sessions: viewSessions, alertes: viewAlertes, historique: viewHistorique, echanges: viewEchanges, settings: viewSettings };
+
+function render() {
+  const app = $('#app');
+  const ae = document.activeElement, fk = ae && (ae.dataset.f ? ['f', ae.dataset.f] : ae.hasAttribute && ae.hasAttribute('data-hq') ? ['hq', ''] : null), pos = fk && ae.selectionStart;
+  if (!DB.users.length) { app.innerHTML = setupHTML(); return; }
+  if (!S.user) { app.innerHTML = loginHTML(); return; }
+  const nav = NAV.filter(n => n[2]()), v = nav.some(n => n[0] === S.view) ? S.view : 'dashboard';
+  const nAl = computeAlerts().filter(a => a.sev === 'warn').length;
+  const scroll = $('main') ? $('main').scrollTop : 0;
+  app.innerHTML = `<header class="top noprint"><div class="brand"><b>Formidable</b><span>Planning des formations</span></div>${syncHTML()}<span class="sp"></span><button class="bell" data-act="goto" data-v="alertes" title="Alertes à traiter">🔔${nAl ? `<em>${nAl}</em>` : ''}</button><div class="who"><b>${esc(S.user.name)}</b><small>${ROLES[S.user.role]}</small></div><button class="btn ghost" data-act="logout">Quitter</button></header>
+  <div class="shell"><nav class="side noprint">${nav.map(([k, l]) => `<button class="${k === v ? 'on' : ''}" data-act="goto" data-v="${k}">${l}${k === 'alertes' && nAl ? ` <em>${nAl}</em>` : ''}</button>`).join('')}</nav><main id="main">${VIEWS[v]()}</main></div>`;
+  if (scroll && $('main')) $('main').scrollTop = scroll;
+  if (fk) { const el = fk[0] === 'f' ? $(`[data-f="${fk[1]}"]`) : $('[data-hq]'); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) { } } }
+  const fi = $('#xlsxIn'); if (fi) fi.value = '';
+}
+
+function setupHTML() {
+  return `<div class="login"><form id="setupForm" class="card"><h1>Bienvenue dans Formidable</h1><p>Application de planification des formations. <b>Toutes les données restent sur votre poste</b> (ou dans le fichier que vous choisirez) : aucune connexion, aucun envoi.</p>
+  <label class="f"><span>Votre nom (futur administrateur)</span><input name="name" required autofocus></label><label class="f"><span>Code personnel (facultatif, 4 caractères minimum)</span><input name="pin" type="password" autocomplete="new-password"></label><label class="f"><span>Nom de l'équipe (affiché sur les bilans)</span><input name="org"></label>
+  <button class="btn primary" type="submit">Démarrer</button><hr><p class="muted">Vous rejoignez une équipe qui utilise déjà Formidable ?</p><div class="actions wrap">${FS_OK ? '<button type="button" class="btn" data-act="fssetup">Ouvrir le fichier de données partagé…</button>' : ''}<label class="btn">Restaurer une sauvegarde…<input type="file" id="restoreIn" accept=".json" hidden></label></div></form></div>`;
+}
+function loginHTML() {
+  return `<div class="login"><form id="loginForm" class="card"><h1>Formidable</h1><p class="muted">Planning des formations${DB.settings.org ? ' · ' + esc(DB.settings.org) : ''}</p><label class="f"><span>Utilisateur</span><select name="u" required>${opts([...DB.users].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(u => [u.id, `${u.name} (${ROLES[u.role]})`]), sessionStorage.getItem('formidable.last'))}</select></label><label class="f"><span>Code personnel</span><input name="pin" type="password" autocomplete="current-password"></label><p id="loginErr" class="err"></p><button class="btn primary" type="submit">Se connecter</button>${FS_OK && FS.h && FS.msg === 'reauth' ? '<hr><button type="button" class="btn" data-act="fsauth">Réautoriser le fichier partagé</button>' : ''}</form></div>`;
+}
+
+/* ===== Événements ===== */
+let TMR;
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  if (el.tagName === 'A') e.preventDefault();
+  const a = el.dataset.act, v = el.dataset.v, id = el.dataset.id;
+  try { await ACT[a]?.(el, v, id, e); } catch (err) { console.error(err); toast(String(err.message || err), 'err'); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); if (e.key === 'Enter' && e.target.matches('tr[data-act],.alert[data-act]')) e.target.click(); });
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.f !== undefined && t.type !== 'search') { S.f[t.dataset.f] = t.value; render(); }
+  else if (t.dataset.c) { S.cal[t.dataset.c] = t.value; render(); }
+  else if (t.id === 'xlsxIn') importFile(t.files[0]);
+  else if (t.id === 'restoreIn') restoreFlow(t.files[0], !DB.users.length);
+  else if (t.name === 'statut' && t.closest('#sf')) formSync();
+  else if (t.name === 'modalite' && t.closest('#sf')) formSync();
+  else if (t.id === 'optPast' || t.id === 'optDup') renderPreview();
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.f === 'q') { clearTimeout(TMR); TMR = setTimeout(() => { S.f.q = t.value; render(); }, 250); }
+  else if (t.hasAttribute('data-hq')) { clearTimeout(TMR); TMR = setTimeout(() => { S.hq = t.value; render(); }, 250); }
+  else if (t.closest('#sf') && (t.name === 'date' || t.name === 'duree')) formSync();
+});
+document.addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.id === 'sf') return saveSession(f);
+  if (f.id === 'loginForm') {
+    const u = DB.users.find(x => x.id === f.u.value), pin = f.pin.value;
+    if (u && (!u.pin || (await hashPin(u.salt, pin)) === u.pin)) { S.user = u; sessionStorage.setItem('formidable.user', u.id); sessionStorage.setItem('formidable.last', u.id); S.view = 'dashboard'; render(); }
+    else { $('#loginErr').textContent = 'Code incorrect.'; f.pin.value = ''; f.pin.focus(); }
+  }
+  if (f.id === 'setupForm') {
+    const pin = f.pin.value; if (pin && pin.length < 4) return toast('Le code doit comporter au moins 4 caractères.', 'err');
+    const u = await makeUser(f.name.value.trim(), 'admin', pin);
+    DB.users.push(u); DB.settings.org = f.org.value.trim(); touchSettings(); S.user = u; sessionStorage.setItem('formidable.user', u.id); logH('Création', null, 'Initialisation de l\'application'); persist(); S.view = 'echanges'; render();
+    toast('Application initialisée. Importez votre planning Excel ou créez une première session.');
+  }
+  if (f.id === 'edForm') return f.onsubmit2 && f.onsubmit2(f);
+});
+
+const ACT = {
+  goto: (_, v) => { S.view = v; render(); $('main')?.scrollTo(0, 0); },
+  logout: () => { S.user = null; sessionStorage.removeItem('formidable.user'); render(); },
+  resetf: () => { S.f = { year: String(new Date().getFullYear()) }; render(); },
+  print: () => window.print(),
+  sort: (_, v, __, e) => { const k = e.target.closest('[data-k]').dataset.k; S.sort = { k, d: S.sort.k === k ? -S.sort.d : 1 }; render(); },
+  calmode: (_, v) => { S.cal.mode = v; render(); },
+  caltoday: () => { S.cal.date = today(); render(); },
+  calprev: () => calMove(-1), calnext: () => calMove(1),
+  calgo: (el, v) => { S.cal.mode = v; S.cal.date = el.dataset.date; render(); },
+  new: (el) => openSession(null, el.dataset.date),
+  open: (el, v, id) => openSession(id),
+  close: () => closeModal(),
+  fssetup: async () => { await fileLink(false); S.user = null; render(); },
+  fsauth: () => fileReauth(),
+  fslink: async (_, v) => { await fileLink(v === 'new'); toast('Fichier partagé lié.'); render(); },
+  fsunlink: async () => { await fileUnlink(); render(); },
+  /* planning */
+  exportSessions: () => dlXlsx([{ name: 'Sessions', rows: [SESSION_COLS, ...sortedSessions(filtered()).map(sessionRow)] }], 'sessions'),
+  exportBilan: () => exportBilan(),
+  exportBy: (_, v) => exportBy(v),
+  exportIcs: () => download(icsFor(sortedSessions(filtered()).filter(s => s.statut !== 'reportee')), 'planning-formations.ics'),
+  exportHist: () => dlXlsx([{ name: 'Historique', rows: [['Date', 'Utilisateur', 'Action', 'Session', 'Détail'], ...DB.history.slice().reverse().map(h => [new Date(h.ts).toLocaleString('fr-FR'), h.user, h.action, h.label, h.detail])] }], 'historique'),
+  /* fiche */
+  calcDuree: () => { const f = $('#sf'), a = t2m(f.debut.value), b = t2m(f.fin.value); if (a === null || b === null || b <= a) return toast('Renseignez des horaires valides.', 'err'); f.duree.value = Math.round((b - a) / 15) / 4; formSync(); },
+  preset: (el) => { $('#sf').duree.value = el.dataset.h; formSync(); },
+  addDate: () => { const v = $('#xd').value; if (!v) return; (S.xd ||= []); if (!S.xd.includes(v)) S.xd.push(v); S.xd.sort(); $('#xd').value = ''; xdRender(); },
+  rmDate: (el, v) => { S.xd = S.xd.filter(x => x !== v); xdRender(); },
+  quick: (_, v) => {
+    const f = $('#sf'); f.statut.value = v; formSync();
+    if (v === 'realisee') { if (!f.dureeReelle.value) f.dureeReelle.value = f.duree.value; f.presents.focus(); }
+    else { if (!f.dateDecision.value) f.dateDecision.value = today(); f.motif.focus(); }
+  },
+  dup: () => { const s = DB.sessions.find(x => x.id === S.cur); closeModal(); openSession(null, '', { ...structuredClone(s), id: uid(), date: '', statut: 'planifiee', dureeReelle: null, presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', groupeId: '', remplaceId: '', suppIntervenu: false }); },
+  del: async () => { const s = DB.sessions.find(x => x.id === S.cur); if (!await confirmBox(`Supprimer définitivement « ${sessionLabel(s)} » ? (Préférez le statut « Annulée » pour conserver la trace.)`, 'Supprimer', true)) return; DB.sessions = DB.sessions.filter(x => x.id !== s.id); DB.del[s.id] = new Date().toISOString(); logH('Suppression', s, 'Session supprimée'); persist(); closeModal(); render(); },
+  mail: () => { const s = DB.sessions.find(x => x.id === S.cur), to = involved(s).map(i => (A(i) || {}).email).filter(Boolean).join(';'); const body = `Bonjour,\n\nSession : ${s.titre || typeName(s.typeId)}\nDate : ${fmtDate(s.date)}${s.debut ? ' de ' + s.debut + (s.fin ? ' à ' + s.fin : '') : ''}\nLieu : ${lieuName(s) || 'à définir'}${s.lienVisio ? '\nLien : ' + s.lienVisio : ''}\nStatut : ${ST[s.statut].label}${s.motif ? '\nMotif : ' + s.motif : ''}${s.nouvelleDate ? '\nNouvelle date : ' + fmtDate(s.nouvelleDate) : ''}\nTitulaire : ${animName(s.titulaireId) || '—'}${s.suppleantId ? '\nSuppléant : ' + animName(s.suppleantId) : ''}\n\nCordialement,\n${S.user.name}`; location.href = `mailto:${to}?subject=${encodeURIComponent('Formation – ' + (s.titre || typeName(s.typeId)) + ' – ' + fmtShort(s.date))}&body=${encodeURIComponent(body)}`; },
+  ics1: () => { const s = DB.sessions.find(x => x.id === S.cur); download(icsFor([s]), 'formation.ics'); },
+  /* paramètres */
+  settab: (_, v) => { S.setTab = v; render(); },
+  edit: (el) => editDialog(el.dataset.k, el.dataset.id),
+  rm: (el) => removeItem(el.dataset.k, el.dataset.id),
+  merge: (el) => mergeDialog(el.dataset.k, el.dataset.id),
+  listadd: (el) => { const k = el.dataset.k, v = $('#add-' + k).value.trim(); if (!v || DB.settings[k].includes(v)) return; DB.settings[k].push(v); touchSettings(); persist(); render(); },
+  listdel: (el) => { DB.settings[el.dataset.k].splice(+el.dataset.i, 1); touchSettings(); persist(); render(); },
+  listren: async (el) => {
+    const k = el.dataset.k, i = +el.dataset.i, old = DB.settings[k][i], nv = await promptBox('Nouvelle valeur', old); if (!nv || nv === old) return;
+    DB.settings[k][i] = nv; touchSettings();
+    if (k === 'themes') DB.sessions.forEach(s => { if (s.theme === old) { s.theme = nv; stamp(s); } });
+    if (k === 'populations') DB.sessions.forEach(s => { if (s.population === old) { s.population = nv; stamp(s); } });
+    if (k === 'equipes') DB.animateurs.forEach(a => { if (a.equipe === old) { a.equipe = nv; stamp(a); } });
+    persist(); render();
+  },
+  saveGeneral: () => { DB.settings.org = $('#set-org').value.trim(); DB.settings.alertDays = Math.max(1, +$('#set-days').value || 7); touchSettings(); persist(); toast('Enregistré.'); render(); },
+  wipe: async () => { if (!await confirmBox('Effacer TOUTES les données de ce navigateur ? Pensez à télécharger une sauvegarde avant.', 'Tout effacer', true)) return; localStorage.removeItem(KEY); await fileUnlink(); DB = newDB(); S.user = null; sessionStorage.clear(); render(); },
+  backup: async () => { const pw = $('#bkpw').value; const data = pw ? await encryptJSON(DB, pw) : DB; download(new Blob([JSON.stringify(data)], { type: 'application/json' }), `formidable-sauvegarde-${today()}${pw ? '-chiffree' : ''}.json`); toast(pw ? 'Sauvegarde chiffrée téléchargée.' : 'Sauvegarde téléchargée (non chiffrée).'); },
+  doImport: () => doImport()
+};
+function calMove(n) {
+  const c = S.cal, d = parseISO(c.date);
+  if (c.mode === 'day') c.date = addDays(c.date, n); else if (c.mode === 'week') c.date = addDays(c.date, 7 * n);
+  else if (c.mode === 'year') { d.setFullYear(d.getFullYear() + n); c.date = toISO(d); } else { d.setDate(1); d.setMonth(d.getMonth() + n); c.date = toISO(d); }
+  render();
+}
+function dlXlsx(sheets, name) { download(buildXlsx(sheets), `${name}-${today()}.xlsx`); toast('Export Excel généré.'); }
+
+/* ===== Exports ===== */
+function exportBilan() {
+  const list = filtered(), r = stats(list), pct = x => x === null ? '' : Math.round(x * 1000) / 10;
+  const rows = o => Object.values(o).sort((a, b) => b.hReal - a.hReal || b.hPrev - a.hPrev).map(e => [e.name, e.prev, e.real, e.ann, e.rep, e.hPrev, e.hReal]);
+  const H = n => [n, 'Sessions prévues', 'Sessions réalisées', 'Annulées', 'Reportées', 'Heures prévues', 'Heures réalisées'];
+  dlXlsx([
+    { name: 'Synthèse', rows: [['Indicateur', 'Valeur'], ['Période', periodLabel()], ['Entité', DB.settings.org], ['Sessions au total', r.n], ['À planifier', r.st.a_planifier], ['Planifiées', r.st.planifiee], ['Confirmées', r.st.confirmee], ['Réalisées', r.st.realisee], ['Reportées', r.st.reportee], ['Annulées', r.st.annulee], ['Heures planifiées (hors annulées/reportées)', r.hPlan], ['Heures réalisées', r.hReal], ['Participants prévus (sessions réalisées)', r.prevus], ['Participants présents', r.presents], ['Taux de participation (%)', pct(r.taux)], ['Édité le', new Date().toLocaleString('fr-FR')]] },
+    { name: 'Animateurs', rows: [H('Animateur'), ...rows(r.anim)] }, { name: 'Types', rows: [H('Type'), ...rows(r.type)] },
+    { name: 'Lieux', rows: [H('Lieu'), ...rows(r.lieu)] }, { name: 'Secteurs', rows: [H('Secteur'), ...rows(r.secteur)] },
+    { name: 'Par mois', rows: [['Mois', ...STATUTS.map(s => s.label)], ...Object.keys(r.mois).sort().map(m => [m, ...STATUTS.map(s => r.mois[m][s.id])])] },
+    { name: 'Sessions', rows: [SESSION_COLS, ...sortedSessions(list).map(sessionRow)] }], 'bilan-formations');
+}
+function exportBy(g) {
+  const list = sortedSessions(filtered()), groups = new Map();
+  const add = (k, s, extra) => { if (!groups.has(k)) groups.set(k, []); groups.get(k).push([...sessionRow(s), extra]); };
+  for (const s of list) {
+    if (g === 'anim') { const roles = [[s.titulaireId, 'Titulaire'], [s.suppleantId, 'Suppléant'], ...(s.coanim || []).map(c => [c, 'Coanimateur'])]; if (!s.titulaireId) add('Sans animateur', s, ''); roles.filter(r => r[0]).forEach(([id, rl]) => add(animName(id), s, rl)); }
+    else if (g === 'lieu') add(lieuName(s) || 'Lieu non défini', s, ''); else add(typeName(s.typeId), s, '');
+  }
+  if (!groups.size) return toast('Aucune session à exporter.', 'err');
+  dlXlsx([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([k, rows]) => ({ name: k, rows: [[...SESSION_COLS, g === 'anim' ? 'Rôle' : ''], ...rows] })), 'planning-par-' + { anim: 'animateur', lieu: 'lieu', type: 'type' }[g]);
+}
+
+/* ===== Fiche session ===== */
+function openSession(id, date, tpl) {
+  const isNew = !id; let s = isNew ? newSession({ date: date || '', ...(tpl || {}), typeId: (tpl && tpl.typeId) || '' }) : DB.sessions.find(x => x.id === id);
+  if (tpl) s = { ...s, ...tpl };
+  if (isNew && !can.edit()) return;
+  S.cur = isNew ? null : id; S.curNew = isNew; S.tpl = isNew ? s : null; S.xd = [];
+  modal(sessionForm(s, isNew), 'big');
+  formSync();
+}
+function formSync() {
+  const f = $('#sf'); if (!f) return;
+  $('#decision').classList.toggle('hide', !['annulee', 'reportee'].includes(f.statut.value));
+  const dist = f.modalite.value === 'distance';
+  $('.lieu-p', f).classList.toggle('hide', dist); $('.lieu-d', f).classList.toggle('hide', !dist);
+  $('#annee').value = f.date.value ? f.date.value.slice(0, 4) : '';
+  const h = parseFloat(f.duree.value); $('#dureeFmt').textContent = isNaN(h) ? '' : '= ' + fmtH(h);
+}
+function xdRender() { $('#xdl').innerHTML = (S.xd || []).map(d => `<span class="tag lg">${fmtShort(d)} <button type="button" class="lnk" data-act="rmDate" data-v="${d}">retirer</button></span>`).join(''); }
+
+const FL = { titre: 'Intitulé', typeId: 'Type', theme: 'Thème', objectif: 'Objectif', date: 'Date', debut: 'Début', fin: 'Fin', duree: 'Durée prévue', dureeReelle: 'Durée réelle', statut: 'Statut', modalite: 'Modalité', lieuId: 'Lieu', lienVisio: 'Lien visio', adresse: 'Adresse', titulaireId: 'Titulaire', suppleantId: 'Suppléant', suppIntervenu: 'Suppléant intervenu', coanim: 'Coanimateurs', coanimRole: 'Rôle coanimation', caisse: 'Caisse/unité', agences: 'Agences', demandeur: 'Demandeur', population: 'Population', profil: 'Profil', prevus: 'Participants prévus', presents: 'Participants présents', participants: 'Participants', dateDemande: 'Date de la demande', origine: 'Origine de la demande', organisateur: 'Organisateur', logistique: 'Logistique', support: 'Support', docs: 'Documents', commentaire: 'Commentaire', motif: 'Motif', dateDecision: 'Date de décision', nouvelleDate: 'Nouvelle date' };
+function showVal(k, v) {
+  if (Array.isArray(v)) return v.map(x => typeof x === 'object' ? x.nom : animName(x)).join(', ') || '∅';
+  if (v === '' || v === null || v === undefined) return '∅';
+  if (k === 'typeId') return typeName(v); if (k === 'lieuId') return (L(v) || {}).name || '∅'; if (k === 'titulaireId' || k === 'suppleantId') return animName(v);
+  if (k === 'statut') return ST[v].label; if (k === 'modalite') return MODAL[v]; if (typeof v === 'boolean') return v ? 'oui' : 'non';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return fmtShort(v); return String(v);
+}
+async function saveSession(form) {
+  const base = S.curNew ? S.tpl : DB.sessions.find(x => x.id === S.cur), old = structuredClone(base), s = structuredClone(base);
+  const strF = ['titre', 'typeId', 'theme', 'objectif', 'date', 'debut', 'fin', 'statut', 'modalite', 'lieuId', 'lienVisio', 'adresse', 'titulaireId', 'suppleantId', 'coanimRole', 'caisse', 'agences', 'demandeur', 'population', 'profil', 'participants', 'dateDemande', 'origine', 'organisateur', 'logistique', 'support', 'commentaire', 'motif', 'dateDecision', 'nouvelleDate'];
+  const ok = n => { const e = form.elements[n]; return e && !(e.length ? e[0].disabled : e.disabled) ? e : null; };
+  strF.forEach(n => { const e = ok(n); if (e) s[n] = e.value.trim(); });
+  ['duree', 'dureeReelle', 'prevus', 'presents'].forEach(n => { const e = ok(n); if (e) s[n] = e.value === '' ? null : +e.value; });
+  if (ok('suppIntervenu')) s.suppIntervenu = form.suppIntervenu.checked;
+  if (ok('coanim')) s.coanim = $$('input[name=coanim]:checked', form).map(x => x.value);
+  if (ok('docs')) s.docs = form.docs.value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [n, ...r] = l.split('|'); return { nom: n.trim(), lien: r.join('|').trim() }; });
+  if (!s.date) return toast('La date est obligatoire.', 'err');
+  if (!s.typeId) return toast('Le type de formation est obligatoire.', 'err');
+  if (s.debut && s.fin && t2m(s.fin) <= t2m(s.debut)) return toast('L\'heure de fin doit être postérieure à l\'heure de début.', 'err');
+  if (s.titulaireId && s.titulaireId === s.suppleantId) return toast('Le suppléant doit être différent du titulaire.', 'err');
+  if (s.suppleantId === '' ) s.suppIntervenu = false;
+  s.coanim = (s.coanim || []).filter(x => x !== s.titulaireId);
+  if (!s.titre) s.titre = typeName(s.typeId) + (s.modalite === 'distance' ? ' – à distance' : (s.lieuId ? ' – ' + (L(s.lieuId) || {}).name : ''));
+  if (['annulee', 'reportee'].includes(s.statut) && s.statut !== old.statut) { s.dateDecision ||= today(); s.decisionPar = S.user.name; }
+  if (s.statut === 'realisee' && s.dureeReelle == null) s.dureeReelle = s.duree;
+  if (s.statut !== 'realisee' && old.statut !== 'realisee' && false) s.dureeReelle = null;
+  stamp(s);
+  const created = [];
+  if (S.curNew) {
+    const dates = [s.date, ...(S.xd || []).filter(d => d !== s.date)], gid = dates.length > 1 ? uid() : '';
+    dates.forEach(d => { const c = { ...structuredClone(s), id: dates.length > 1 ? uid() : s.id, date: d, groupeId: gid }; stamp(c); DB.sessions.push(c); created.push(c); logH('Création', c, `Session créée (${typeName(c.typeId)}, ${fmtShort(c.date)}${c.titulaireId ? ', ' + animName(c.titulaireId) : ''})${gid ? ' – série de ' + dates.length : ''}`); });
+  } else {
+    const i = DB.sessions.findIndex(x => x.id === s.id); DB.sessions[i] = s; created.push(s);
+    const ch = Object.keys(FL).filter(k => JSON.stringify(old[k] ?? '') !== JSON.stringify(s[k] ?? ''));
+    if (ch.includes('statut')) logH('Statut', s, `${showVal('statut', old.statut)} → ${showVal('statut', s.statut)}${s.motif ? ' · motif : ' + s.motif : ''}${s.nouvelleDate ? ' · nouvelle date : ' + fmtShort(s.nouvelleDate) : ''}`);
+    const an = ch.filter(k => ['titulaireId', 'suppleantId', 'coanim', 'suppIntervenu'].includes(k)); if (an.length) logH('Animateur', s, an.map(k => `${FL[k]} : ${showVal(k, old[k])} → ${showVal(k, s[k])}`).join('\n'));
+    const rest = ch.filter(k => k !== 'statut' && !an.includes(k)); if (rest.length) logH('Modification', s, rest.map(k => `${FL[k]} : ${showVal(k, old[k])} → ${showVal(k, s[k])}`).join('\n'));
+    if (!ch.length) { closeModal(); return; }
+    if (s.statut === 'reportee' && s.nouvelleDate && form.creerRemplacement && form.creerRemplacement.checked && !DB.sessions.some(x => x.remplaceId === s.id)) {
+      const r = stamp(newSession({ ...structuredClone(s), id: uid(), date: s.nouvelleDate, statut: 'a_planifier', dureeReelle: null, presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', remplaceId: s.id, suppIntervenu: false, created: new Date().toISOString() }));
+      DB.sessions.push(r); logH('Création', r, `Session de remplacement de « ${sessionLabel(s)} »`); toast('Session de remplacement créée au ' + fmtShort(r.date) + '.');
+    }
+  }
+  persist(); closeModal(); render();
+  const cf = created.flatMap(conflictsFor); if (cf.length) toast('⚠ ' + cf[0].msg, 'err'); else toast(S.curNew ? (created.length > 1 ? `${created.length} sessions créées.` : 'Session créée.') : 'Modifications enregistrées.');
+}
+
+/* ===== Paramètres : dialogues ===== */
+function promptBox(label, val = '', type = 'text') { return new Promise(res => { const m = modal(`<form><div class="mbody"><label class="f"><span>${esc(label)}</span><input type="${type}" value="${esc(val)}" name="v" autocomplete="off"></label></div><div class="mfoot"><button type="button" class="btn" data-x="0">Annuler</button><button class="btn primary">OK</button></div></form>`, 'small'); m.querySelector('form').addEventListener('submit', e => { e.preventDefault(); e.stopPropagation(); const v = e.target.v.value.trim(); closeModal(); res(v); }); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } }); }); }
+const EDITORS = {
+  type: { title: 'Type de formation', get: id => DB.settings.types.find(x => x.id === id) || { name: '', color: PALETTE[DB.settings.types.length % PALETTE.length] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Couleur</span><input type="color" name="color" value="${o.color}"></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.settings.types.some(t => t.id !== id && norm(t.name) === norm(n))) throw new Error('Ce type existe déjà.'); if (id) Object.assign(DB.settings.types.find(x => x.id === id), { name: n, color: fd.color }); else DB.settings.types.push({ id: uid(), name: n, color: fd.color }); touchSettings(); } },
+  lieu: { title: 'Lieu', get: id => L(id) || { name: '', kind: 'salle', adresse: '', secteur: '', lien: '', aliases: [] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Nature</span><select name="kind">${opts([['salle', 'Salle'], ['agence', 'Agence'], ['site', 'Site']], o.kind)}</select></label><label class="f"><span>Adresse</span><input name="adresse" value="${esc(o.adresse)}"></label><label class="f"><span>Secteur géographique</span><input name="secteur" value="${esc(o.secteur)}" list="dl-sec"><datalist id="dl-sec">${[...new Set(DB.lieux.map(l => l.secteur).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('')}</datalist></label><label class="f"><span>Autres orthographes rencontrées (séparées par « ; »)</span><input name="aliases" value="${esc((o.aliases || []).join(' ; '))}"></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.lieux.some(l => l.id !== id && norm(l.name) === norm(n))) throw new Error('Ce lieu existe déjà : utilisez-le, ou fusionnez les doublons.'); const v = { name: n, kind: fd.kind, adresse: fd.adresse.trim(), secteur: fd.secteur.trim(), aliases: fd.aliases.split(';').map(x => x.trim()).filter(Boolean) }; if (id) stamp(Object.assign(L(id), v)); else DB.lieux.push(stamp({ id: uid(), lien: '', ...v })); } },
+  anim: { title: 'Animateur', get: id => A(id) || { name: '', equipe: '', email: '', actif: true, note: '' }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Équipe / unité de rattachement</span><input name="equipe" list="dl-eq" value="${esc(o.equipe)}"><datalist id="dl-eq">${DB.settings.equipes.map(x => `<option value="${esc(x)}">`).join('')}</datalist></label><label class="f"><span>E-mail (sert uniquement à pré-remplir vos messages)</span><input name="email" type="email" value="${esc(o.email)}"></label><label class="chk"><input type="checkbox" name="actif"${o.actif === false ? '' : ' checked'}> Actif (proposé dans les listes)</label><label class="f"><span>Note</span><textarea name="note" rows="2">${esc(o.note)}</textarea></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.animateurs.some(a => a.id !== id && norm(a.name) === norm(n))) throw new Error('Cet animateur existe déjà.'); const v = { name: n, equipe: fd.equipe.trim(), email: fd.email.trim(), actif: !!fd.actif, note: fd.note.trim() }; if (id) stamp(Object.assign(A(id), v)); else DB.animateurs.push(stamp({ id: uid(), ...v })); if (v.equipe && !DB.settings.equipes.includes(v.equipe)) { DB.settings.equipes.push(v.equipe); touchSettings(); } } },
+  duree: { title: 'Durée type', get: id => DB.settings.durees[id] || { l: '', h: 1 }, fields: o => `<label class="f"><span>Libellé</span><input name="l" value="${esc(o.l)}" required></label><label class="f"><span>Heures</span><input name="h" type="number" step="0.25" min="0.25" max="24" value="${o.h}" required></label>`, save(o, fd, id) { const v = { l: fd.l.trim(), h: +fd.h }; if (id !== undefined && id !== '') DB.settings.durees[+id] = v; else DB.settings.durees.push(v); touchSettings(); } },
+  user: { title: 'Utilisateur', get: id => DB.users.find(x => x.id === id) || { name: '', role: 'lecteur', animateurId: '' }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Profil</span><select name="role">${opts(Object.entries(ROLES), o.role)}</select></label><label class="f"><span>Animateur correspondant (profil Animateur)</span><select name="animateurId">${opts(animOpts(true), o.animateurId, '— aucun —')}</select></label><label class="f"><span>Code personnel ${o.pin ? '(laisser vide pour le conserver)' : '(facultatif)'}</span><input type="password" name="pin" autocomplete="new-password"></label>${o.pin ? '<label class="chk"><input type="checkbox" name="nopin"> Supprimer le code</label>' : ''}`, async save(o, fd, id) { if (fd.pin && fd.pin.length < 4) throw new Error('Le code doit comporter au moins 4 caractères.'); const adm = DB.users.filter(u => u.role === 'admin' && u.id !== id).length; if (id && fd.role !== 'admin' && !adm) throw new Error('Il doit rester au moins un administrateur.'); if (id) { const u = DB.users.find(x => x.id === id); Object.assign(u, { name: fd.name.trim(), role: fd.role, animateurId: fd.animateurId }); if (fd.nopin) u.pin = ''; else if (fd.pin) u.pin = await hashPin(u.salt, fd.pin); stamp(u); if (S.user.id === id) S.user = u; } else DB.users.push(await makeUser(fd.name.trim(), fd.role, fd.pin, fd.animateurId)); } }
+};
+function editDialog(k, id) {
+  const E = EDITORS[k], o = E.get(id);
+  const m = modal(`<form id="edForm"><div class="mhead"><h2>${id !== undefined && id !== '' ? 'Modifier' : 'Ajouter'} · ${E.title}</h2><button type="button" class="x" data-act="close">✕</button></div><div class="mbody"><div class="fg1">${E.fields(o)}</div></div><div class="mfoot"><span class="sp"></span><button type="button" class="btn" data-act="close">Annuler</button><button class="btn primary">Enregistrer</button></div></form>`, 'small');
+  $('#edForm').onsubmit2 = async f => { try { const fd = {}; new FormData(f).forEach((v, n) => fd[n] = v); await E.save(o, fd, id); persist(); closeModal(); render(); } catch (err) { toast(err.message, 'err'); } };
+}
+async function removeItem(k, id) {
+  const use = { type: DB.sessions.filter(s => s.typeId === id).length, lieu: DB.sessions.filter(s => s.lieuId === id).length, anim: DB.sessions.filter(s => involved(s).includes(id)).length }[k];
+  if (use) return toast(`Utilisé par ${use} session(s) : ${k === 'type' ? 'réaffectez ces sessions d\'abord' : 'utilisez « Fusionner »' + (k === 'anim' ? ' ou désactivez l\'animateur' : '')}.`, 'err');
+  if (k === 'user') { if (id === S.user.id) return toast('Vous ne pouvez pas supprimer votre propre compte.', 'err'); if (DB.users.find(u => u.id === id).role === 'admin' && DB.users.filter(u => u.role === 'admin').length < 2) return toast('Il doit rester au moins un administrateur.', 'err'); }
+  if (!await confirmBox('Supprimer cet élément ?', 'Supprimer', true)) return;
+  if (k === 'type') DB.settings.types = DB.settings.types.filter(x => x.id !== id), touchSettings();
+  if (k === 'duree') DB.settings.durees.splice(+id, 1), touchSettings();
+  if (k === 'lieu') { DB.lieux = DB.lieux.filter(x => x.id !== id); DB.del[id] = new Date().toISOString(); }
+  if (k === 'anim') { DB.animateurs = DB.animateurs.filter(x => x.id !== id); DB.del[id] = new Date().toISOString(); }
+  if (k === 'user') { DB.users = DB.users.filter(x => x.id !== id); DB.del[id] = new Date().toISOString(); }
+  persist(); render();
+}
+function mergeDialog(k, id) {
+  const src = k === 'lieu' ? L(id) : A(id), list = (k === 'lieu' ? lieuOpts() : animOpts(true)).filter(x => x[0] !== id);
+  if (!list.length) return toast('Aucun autre élément vers lequel fusionner.', 'err');
+  const m = modal(`<form id="edForm"><div class="mhead"><h2>Fusionner « ${esc(src.name)} »</h2><button type="button" class="x" data-act="close">✕</button></div><div class="mbody"><p>Toutes les sessions de « ${esc(src.name)} » seront rattachées à l'élément choisi, puis « ${esc(src.name)} » sera supprimé (son nom devient un alias pour un lieu).</p><label class="f"><span>Fusionner dans</span><select name="to">${opts(list)}</select></label></div><div class="mfoot"><span class="sp"></span><button type="button" class="btn" data-act="close">Annuler</button><button class="btn primary">Fusionner</button></div></form>`, 'small');
+  $('#edForm').onsubmit2 = f => {
+    const to = f.to.value;
+    DB.sessions.forEach(s => { let ch = false; if (k === 'lieu' && s.lieuId === id) { s.lieuId = to; ch = true; } if (k === 'anim') { ['titulaireId', 'suppleantId'].forEach(p => { if (s[p] === id) { s[p] = to; ch = true; } }); if ((s.coanim || []).includes(id)) { s.coanim = [...new Set(s.coanim.map(x => x === id ? to : x))]; ch = true; } } if (ch) stamp(s); });
+    if (k === 'lieu') { const t = L(to); t.aliases = [...new Set([...(t.aliases || []), src.name, ...(src.aliases || [])])]; stamp(t); DB.lieux = DB.lieux.filter(x => x.id !== id); } else DB.animateurs = DB.animateurs.filter(x => x.id !== id);
+    DB.del[id] = new Date().toISOString(); persist(); closeModal(); render(); toast('Fusion effectuée.');
+  };
+}
+
+/* ===== Import Excel ===== */
+async function importFile(file) {
+  if (!file) return;
+  try { S.parsed = parseNeo(await readXlsx(await file.arrayBuffer())); S.parsed.file = file.name; renderPreview(); }
+  catch (e) { $('#impPreview').innerHTML = `<p class="err">${esc(e.message || e)}</p>`; }
+}
+function renderPreview() {
+  const P = S.parsed, box = $('#impPreview'); if (!box || !P) return;
+  const o = { pastDone: $('#optPast') ? $('#optPast').checked : true, skipDup: $('#optDup') ? $('#optDup').checked : true };
+  if (!P.rows.length) { box.innerHTML = `<p class="err">Aucune session trouvée. ${esc(P.warn.join(' '))}</p>`; return; }
+  const backup = structuredClone(DB); let rep; try { rep = applyNeo(P, o); } finally { DB = backup; }
+  const lm = Object.entries(rep.lieuMap), canc = P.rows.filter(r => r.annulee).length;
+  box.innerHTML = `<div class="info"><b>${esc(P.file)}</b> : ${P.rows.length} session(s) détectée(s) (${canc} annulée(s)) du ${fmtShort(P.rows.map(r => r.date).sort()[0])} au ${fmtShort(P.rows.map(r => r.date).sort().pop())}.<br>Seront ajoutées : <b>${rep.added}</b>${rep.dup ? ` · ignorées (déjà présentes) : ${rep.dup}` : ''}.<br>Nouveaux animateurs : ${rep.newAnim.map(esc).join(', ') || 'aucun'}<br>Nouveaux types : ${rep.newType.map(esc).join(', ') || 'aucun'}<br>Nouveaux lieux : ${rep.newLieu.map(esc).join(', ') || 'aucun'}</div>
+  ${lm.length ? `<details open><summary>Harmonisation des lieux (variantes d'orthographe regroupées)</summary><table class="tbl"><thead><tr><th>Lieu retenu</th><th>Orthographes rencontrées dans le fichier</th></tr></thead><tbody>${lm.map(([n, set]) => `<tr><td>${esc(n)}</td><td>${[...set].map(esc).join(' · ')}</td></tr>`).join('')}</tbody></table></details>` : ''}
+  ${P.notes.length ? `<p class="muted">${P.notes.length} commentaire(s) d'animateur seront ajoutés à leur fiche. Les commentaires de session sont repris dans le champ « Commentaires ».</p>` : ''}
+  <label class="chk"><input type="checkbox" id="optPast"${o.pastDone ? ' checked' : ''}> Marquer les sessions passées (avant aujourd'hui) comme « Réalisées »</label><label class="chk"><input type="checkbox" id="optDup"${o.skipDup ? ' checked' : ''}> Ignorer les sessions déjà présentes (même date, type, lieu et animateur)</label>
+  <div class="actions"><button class="btn primary" data-act="doImport">Importer ${rep.added} session(s)</button></div>`;
+}
+function doImport() {
+  const o = { pastDone: $('#optPast').checked, skipDup: $('#optDup').checked }, rep = applyNeo(S.parsed, o);
+  S.parsed = null; persist(); S.f = { year: '' }; S.view = 'sessions'; render(); toast(`${rep.added} session(s) importée(s).`);
+}
+
+/* ===== Restauration ===== */
+async function restoreFlow(file, fromSetup) {
+  if (!file) return;
+  try {
+    let data = JSON.parse(await file.text());
+    if (data.fmt === 'formidable-enc') { const pw = await promptBox('Mot de passe de la sauvegarde', '', 'password'); if (!pw) return; try { data = await decryptJSON(data, pw); } catch (e) { throw new Error('Mot de passe incorrect.'); } }
+    if (!data.sessions || !data.settings) throw new Error('Ce fichier n\'est pas une sauvegarde Formidable.');
+    let merge = false;
+    if (!fromSetup && DB.sessions.length + DB.users.length) merge = await confirmBox(`Fusionner la sauvegarde avec les données actuelles ? (Annuler = ne rien faire.) Pour remplacer entièrement, utilisez d'abord « Réinitialiser l'application » dans Paramètres.`, 'Fusionner');
+    if (!fromSetup && !merge) return;
+    DB = merge ? mergeDB(DB, data) : data; persist(); S.user = null; sessionStorage.removeItem('formidable.user'); render(); toast('Sauvegarde restaurée.');
+  } catch (e) { toast(e.message || String(e), 'err'); }
+}
+
+/* ===== Démarrage ===== */
+(async function init() {
+  loadDB(); await fileInit();
+  const uidS = sessionStorage.getItem('formidable.user'); if (uidS) S.user = DB.users.find(u => u.id === uidS) || null;
+  window.addEventListener('focus', () => fileCheck());
+  setInterval(() => { if (!document.hidden && !$('.overlay')) fileCheck(); }, 30000);
+  render();
+})();
+</script>
+</body>
+</html>
