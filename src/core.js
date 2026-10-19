@@ -249,17 +249,26 @@ function sessionRow(s) {
 }
 const sortedSessions = l => [...l].sort((a, b) => (a.date + (a.debut || '')) < (b.date + (b.debut || '')) ? -1 : 1);
 function icsFor(list) {
-  const e = s => String(s).replace(/[\;,]/g, m => '\\' + m).replace(/\n/g, '\\n');
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Formidable//FR', 'CALSCALE:GREGORIAN'];
+  const e = s => String(s).replace(/[\\;,]/g, m => '\\' + m).replace(/\r?\n/g, '\\n');
+  const fold = l => { const b = TE.encode(l); if (b.length <= 74) return l; let out = '', cur = '', n = 0; for (const ch of l) { const k = TE.encode(ch).length; if (n + k > 73) { out += cur + '\r\n '; cur = ''; n = 0; } cur += ch; n += k; } return out + cur; };
+  const stamp0 = new Date().toISOString().replace(/[-:]|\.\d+/g, '');
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Formidable//Planning formations//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Formations'];
   for (const s of list) {
-    const d = s.date.replace(/-/g, '');
-    lines.push('BEGIN:VEVENT', `UID:${s.id}@formidable`, `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d+/g, '')}`);
-    if (s.debut) { const end = s.fin || (() => { const m = t2m(s.debut) + Math.round((s.duree || 1) * 60); return pad(Math.floor(m / 60) % 24) + ':' + pad(m % 60); })(); lines.push(`DTSTART:${d}T${s.debut.replace(':', '')}00`, `DTEND:${d}T${end.replace(':', '')}00`); }
-    else lines.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${addDays(s.date, 1).replace(/-/g, '')}`);
-    lines.push(`SUMMARY:${e((s.titre || typeName(s.typeId)) + (s.statut === 'annulee' ? ' (annulée)' : ''))}`, `LOCATION:${e(lieuName(s) + (s.modalite === 'distance' && s.lienVisio ? ' ' + s.lienVisio : ''))}`, `DESCRIPTION:${e([`Type : ${typeName(s.typeId)}`, `Statut : ${ST[s.statut].label}`, `Titulaire : ${animName(s.titulaireId)}`, s.suppleantId ? `Suppléant : ${animName(s.suppleantId)}` : '', s.commentaire].filter(Boolean).join('\n'))}`, 'END:VEVENT');
+    const d = s.date.replace(/-/g, ''), ts = s.mod ? s.mod.replace(/[-:]|\.\d+/g, '') : stamp0;
+    L.push('BEGIN:VEVENT', `UID:${s.id}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SEQUENCE:${s.mod ? Math.floor(Date.parse(s.mod) / 60000) % 2000000000 : 0}`);
+    if (s.debut) { const end = s.fin || (() => { const m = t2m(s.debut) + Math.round((s.duree || 1) * 60); return pad(Math.floor(m / 60) % 24) + ':' + pad(m % 60); })(); L.push(`DTSTART:${d}T${s.debut.replace(':', '')}00`, `DTEND:${d}T${end.replace(':', '')}00`); }
+    else L.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${addDays(s.date, 1).replace(/-/g, '')}`);
+    const loc = s.modalite === 'distance' ? 'À distance (visio)' : (lieuName(s) + ((L2(s.lieuId) || {}).adresse ? ', ' + L2(s.lieuId).adresse : ''));
+    L.push(`SUMMARY:${e((s.statut === 'annulee' ? 'ANNULÉE – ' : '') + (s.titre || typeName(s.typeId)))}`, `LOCATION:${e(loc)}`);
+    if (s.lienVisio) L.push(`URL:${s.lienVisio.replace(/[\r\n]/g, '')}`);
+    L.push(`STATUS:${s.statut === 'annulee' ? 'CANCELLED' : ['a_planifier', 'planifiee'].includes(s.statut) ? 'TENTATIVE' : 'CONFIRMED'}`, 'TRANSP:OPAQUE', 'X-MICROSOFT-CDO-BUSYSTATUS:BUSY');
+    L.push(`DESCRIPTION:${e([`Type : ${typeName(s.typeId)}${s.theme ? ' · ' + s.theme : ''}`, `Statut : ${ST[s.statut].label}`, s.titulaireId ? `Animateur titulaire : ${animName(s.titulaireId)}` : '', s.suppleantId ? `Suppléant : ${animName(s.suppleantId)}` : '', (s.coanim || []).length ? `Coanimateur(s) : ${s.coanim.map(animName).join(', ')}` : '', s.lienVisio ? `Lien de connexion : ${s.lienVisio}` : '', s.commentaire].filter(Boolean).join('\n'))}`);
+    if (s.debut && s.statut !== 'annulee') L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Rappel formation', 'TRIGGER:-PT30M', 'END:VALARM');
+    L.push('END:VEVENT');
   }
-  lines.push('END:VCALENDAR'); return new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+  L.push('END:VCALENDAR'); return new Blob([L.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
 }
+const L2 = id => DB.lieux.find(x => x.id === id);
 
 /* ===== Import du planning Excel « Néo » ===== */
 function excelDate(v) {
