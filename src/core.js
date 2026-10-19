@@ -40,7 +40,7 @@ const ACTIVE = ['a_planifier', 'planifiee', 'confirmee', 'realisee'];
 /* ===== Base de données (stockage local du navigateur) ===== */
 let DB = null;
 const KEY = 'formidable.db.v1';
-const S = { user: null, view: 'dashboard', f: { year: String(new Date().getFullYear()) }, cal: { mode: 'month', date: today(), group: '', color: 'statut' }, sort: { k: 'date', d: 1 }, setTab: 'types' };
+const S = { user: null, view: 'dashboard', F: {}, cal: { mode: 'month', date: today(), group: '', color: 'statut' }, sort: { k: 'date', d: 1 }, setTab: 'types' };
 
 function newDB() {
   return {
@@ -172,8 +172,13 @@ function syncHTML() {
 }
 
 /* ===== Filtrage ===== */
-function filtered(list = DB.sessions, f = S.f) {
+/** Filtres propres à chaque onglet : tableau de bord = année en cours ; sessions = à venir (jour inclus) */
+function curF() { return S.F[S.view] ||= S.view === 'dashboard' ? { year: String(new Date().getFullYear()) } : S.view === 'sessions' ? { scope: 'avenir' } : {}; }
+function filtered(list = DB.sessions, f = curF()) {
+  const t = today();
   return list.filter(s => {
+    if (f.scope === 'avenir' && s.date < t) return false;
+    if (f.scope === 'passees' && s.date >= t) return false;
     if (f.from && s.date < f.from) return false;
     if (f.to && s.date > f.to) return false;
     if (f.year && !f.from && !f.to && s.date.slice(0, 4) !== f.year) return false;

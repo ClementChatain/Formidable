@@ -34,10 +34,10 @@ document.addEventListener('click', async e => {
   const a = el.dataset.act, v = el.dataset.v, id = el.dataset.id;
   try { await ACT[a]?.(el, v, id, e); } catch (err) { console.error(err); toast(String(err.message || err), 'err'); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); if (e.key === 'Enter' && e.target.matches('tr[data-act],.alert[data-act]')) e.target.click(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !CB) closeModal(); if (e.key === 'Enter' && e.target.matches('tr[data-act],.alert[data-act]')) e.target.click(); });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.dataset.f !== undefined && t.type !== 'search') { S.f[t.dataset.f] = t.value; render(); }
+  if (t.dataset.f !== undefined && t.type !== 'search') { curF()[t.dataset.f] = t.value; render(); }
   else if (t.dataset.c) { S.cal[t.dataset.c] = t.value; render(); }
   else if (t.id === 'xlsxIn') importFile(t.files[0]);
   else if (t.id === 'restoreIn') restoreFlow(t.files[0], !DB.users.length);
@@ -47,7 +47,7 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.dataset.f === 'q') { clearTimeout(TMR); TMR = setTimeout(() => { S.f.q = t.value; render(); }, 250); }
+  if (t.dataset.f === 'q') { clearTimeout(TMR); TMR = setTimeout(() => { curF().q = t.value; render(); }, 250); }
   else if (t.hasAttribute('data-hq')) { clearTimeout(TMR); TMR = setTimeout(() => { S.hq = t.value; render(); }, 250); }
   else if (t.closest('#sf') && (t.name === 'date' || t.name === 'duree')) formSync();
 });
@@ -72,7 +72,7 @@ document.addEventListener('submit', async e => {
 const ACT = {
   goto: (_, v) => { S.view = v; render(); $('main')?.scrollTo(0, 0); },
   logout: () => { S.user = null; sessionStorage.removeItem('formidable.user'); render(); },
-  resetf: () => { S.f = { year: String(new Date().getFullYear()) }; render(); },
+  resetf: () => { delete S.F[S.view]; render(); },
   print: () => window.print(),
   sort: (_, v, __, e) => { const k = e.target.closest('[data-k]').dataset.k; S.sort = { k, d: S.sort.k === k ? -S.sort.d : 1 }; render(); },
   calmode: (_, v) => { S.cal.mode = v; render(); },
@@ -157,6 +157,45 @@ function exportBy(g) {
   dlXlsx([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([k, rows]) => ({ name: k, rows: [[...SESSION_COLS, g === 'anim' ? 'Rôle' : ''], ...rows] })), 'planning-par-' + { anim: 'animateur', lieu: 'lieu', type: 'type' }[g]);
 }
 
+/* ===== Listes avec saisie libre (combobox) ===== */
+const SRC = { type: () => DB.settings.types.map(t => t.name), lieu: () => DB.lieux.map(l => l.name), anim: () => DB.animateurs.filter(a => a.actif !== false).map(a => a.name), theme: () => DB.settings.themes, population: () => DB.settings.populations, equipe: () => DB.settings.equipes, secteur: () => [...new Set(DB.lieux.map(l => l.secteur).filter(Boolean))] };
+function findByName(src, txt) {
+  const n = norm(txt);
+  if (src === 'type') return (DB.settings.types.find(t => norm(t.name) === n) || {}).id;
+  if (src === 'lieu') return (DB.lieux.find(l => norm(l.name) === n || (l.aliases || []).some(a => norm(a) === n)) || {}).id;
+  return (DB.animateurs.find(a => norm(a.name) === n) || {}).id;
+}
+function createByName(src, txt) {
+  if (src === 'type') { const t = { id: uid(), name: txt, color: PALETTE[DB.settings.types.length % PALETTE.length] }; DB.settings.types.push(t); touchSettings(); return t.id; }
+  if (src === 'lieu') { const l = stamp({ id: uid(), name: txt, kind: /agence/i.test(txt) ? 'agence' : 'salle', adresse: '', secteur: '', lien: '', aliases: [] }); DB.lieux.push(l); return l.id; }
+  const a = stamp({ id: uid(), name: txt, equipe: '', email: '', actif: true, note: '' }); DB.animateurs.push(a); return a.id;
+}
+let CB = null;
+function cbShow(box, all) {
+  const inp = $('input', box), ul = $('ul', box), q = norm(inp.value), items = (SRC[box.dataset.src]() || []).slice().sort((a, b) => a.localeCompare(b, 'fr'));
+  const list = all || !q ? items : items.filter(x => norm(x).includes(q));
+  const exact = items.some(x => norm(x) === q);
+  ul.innerHTML = list.map(x => `<li data-v="${esc(x)}"${norm(x) === q ? ' class="sel"' : ''}>${esc(x)}</li>`).join('') + (inp.value.trim() && !exact ? `<li class="new" data-v="${esc(inp.value.trim())}">＋ Ajouter « ${esc(inp.value.trim())} »</li>` : '') || '<li class="none">Aucune entrée — tapez pour en créer une</li>';
+  ul.classList.remove('hide'); CB = box;
+}
+function cbHide() { $$('.combo ul').forEach(u => u.classList.add('hide')); CB = null; }
+document.addEventListener('focusin', e => { const b = e.target.closest('.combo'); if (b && e.target.tagName === 'INPUT') { cbHide(); cbShow(b, true); e.target.select(); } });
+document.addEventListener('input', e => { const b = e.target.closest('.combo'); if (b && e.target.tagName === 'INPUT') cbShow(b, false); });
+document.addEventListener('mousedown', e => {
+  const li = e.target.closest('.combo li'), btn = e.target.closest('.combo .cb');
+  if (li && !li.classList.contains('none')) { e.preventDefault(); const b = li.closest('.combo'); $('input', b).value = li.dataset.v; cbHide(); $('input', b).dispatchEvent(new Event('change', { bubbles: true })); }
+  else if (btn) { e.preventDefault(); const b = btn.closest('.combo'); if (CB === b) cbHide(); else { cbHide(); $('input', b).focus(); cbShow(b, true); } }
+  else if (!e.target.closest('.combo')) cbHide();
+});
+document.addEventListener('keydown', e => {
+  const b = e.target.closest && e.target.closest('.combo'); if (!b) return;
+  const ul = $('ul', b), lis = $$('li:not(.none)', ul), cur = $('li.hl', ul);
+  if (e.key === 'Escape') { if (!ul.classList.contains('hide')) { e.stopPropagation(); cbHide(); } return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (ul.classList.contains('hide')) cbShow(b, true); const L2 = $$('li:not(.none)', ul); let i = L2.indexOf($('li.hl', ul)) + (e.key === 'ArrowDown' ? 1 : -1); i = (i + L2.length) % L2.length; $('li.hl', ul)?.classList.remove('hl'); if (L2[i]) { L2[i].classList.add('hl'); L2[i].scrollIntoView({ block: 'nearest' }); } }
+  else if (e.key === 'Enter' && cur) { e.preventDefault(); $('input', b).value = cur.dataset.v; cbHide(); }
+  else if (e.key === 'Tab') cbHide();
+});
+
 /* ===== Fiche session ===== */
 function openSession(id, date, tpl) {
   const isNew = !id; let s = isNew ? newSession({ date: date || '', ...(tpl || {}), typeId: (tpl && tpl.typeId) || '' }) : DB.sessions.find(x => x.id === id);
@@ -193,10 +232,20 @@ async function saveSession(form) {
   if (ok('suppIntervenu')) s.suppIntervenu = form.suppIntervenu.checked;
   if (ok('coanim')) s.coanim = $$('input[name=coanim]:checked', form).map(x => x.value);
   if (ok('docs')) s.docs = form.docs.value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [n, ...r] = l.split('|'); return { nom: n.trim(), lien: r.join('|').trim() }; });
+  /* champs « liste + saisie libre » : nom saisi → identifiant (création si nouveau, après validation) */
+  const pend = [];
+  [['typeId', 'type'], ['lieuId', 'lieu'], ['titulaireId', 'anim'], ['suppleantId', 'anim']].forEach(([f, src]) => { if (!ok(f)) return; const txt = s[f]; s[f] = ''; if (!txt) return; const id = findByName(src, txt); if (id) s[f] = id; else pend.push([f, src, txt]); });
+  const coNew = ok('coanimNew') ? form.coanimNew.value.trim() : '';
+  const pendTxt = f => (pend.find(p => p[0] === f) || [])[2];
   if (!s.date) return toast('La date est obligatoire.', 'err');
-  if (!s.typeId) return toast('Le type de formation est obligatoire.', 'err');
+  if (!s.typeId && !pendTxt('typeId')) return toast('Le type de formation est obligatoire.', 'err');
   if (s.debut && s.fin && t2m(s.fin) <= t2m(s.debut)) return toast('L\'heure de fin doit être postérieure à l\'heure de début.', 'err');
-  if (s.titulaireId && s.titulaireId === s.suppleantId) return toast('Le suppléant doit être différent du titulaire.', 'err');
+  const tk = s.titulaireId || norm(pendTxt('titulaireId')), sk = s.suppleantId || norm(pendTxt('suppleantId'));
+  if (tk && tk === sk) return toast('Le suppléant doit être différent du titulaire.', 'err');
+  const added = [];
+  pend.forEach(p => { s[p[0]] = createByName(p[1], p[2]); added.push(p[1] + ' « ' + p[2] + ' »'); });
+  if (coNew) { let id = findByName('anim', coNew); if (!id) { id = createByName('anim', coNew); added.push('anim « ' + coNew + ' »'); } s.coanim = [...new Set([...(s.coanim || []), id])]; }
+  ['theme', 'population'].forEach(f => { const list = DB.settings[f === 'theme' ? 'themes' : 'populations']; if (s[f] && !list.some(x => norm(x) === norm(s[f]))) { list.push(s[f]); touchSettings(); } else if (s[f]) s[f] = list.find(x => norm(x) === norm(s[f])); });
   if (s.suppleantId === '' ) s.suppIntervenu = false;
   s.coanim = (s.coanim || []).filter(x => x !== s.titulaireId);
   if (!s.titre) s.titre = typeName(s.typeId) + (s.modalite === 'distance' ? ' – à distance' : (s.lieuId ? ' – ' + (L(s.lieuId) || {}).name : ''));
@@ -228,8 +277,8 @@ async function saveSession(form) {
 function promptBox(label, val = '', type = 'text') { return new Promise(res => { const m = modal(`<form><div class="mbody"><label class="f"><span>${esc(label)}</span><input type="${type}" value="${esc(val)}" name="v" autocomplete="off"></label></div><div class="mfoot"><button type="button" class="btn" data-x="0">Annuler</button><button class="btn primary">OK</button></div></form>`, 'small'); m.querySelector('form').addEventListener('submit', e => { e.preventDefault(); e.stopPropagation(); const v = e.target.v.value.trim(); closeModal(); res(v); }); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } }); }); }
 const EDITORS = {
   type: { title: 'Type de formation', get: id => DB.settings.types.find(x => x.id === id) || { name: '', color: PALETTE[DB.settings.types.length % PALETTE.length] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Couleur</span><input type="color" name="color" value="${o.color}"></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.settings.types.some(t => t.id !== id && norm(t.name) === norm(n))) throw new Error('Ce type existe déjà.'); if (id) Object.assign(DB.settings.types.find(x => x.id === id), { name: n, color: fd.color }); else DB.settings.types.push({ id: uid(), name: n, color: fd.color }); touchSettings(); } },
-  lieu: { title: 'Lieu', get: id => L(id) || { name: '', kind: 'salle', adresse: '', secteur: '', lien: '', aliases: [] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Nature</span><select name="kind">${opts([['salle', 'Salle'], ['agence', 'Agence'], ['site', 'Site']], o.kind)}</select></label><label class="f"><span>Adresse</span><input name="adresse" value="${esc(o.adresse)}"></label><label class="f"><span>Secteur géographique</span><input name="secteur" value="${esc(o.secteur)}" list="dl-sec"><datalist id="dl-sec">${[...new Set(DB.lieux.map(l => l.secteur).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('')}</datalist></label><label class="f"><span>Autres orthographes rencontrées (séparées par « ; »)</span><input name="aliases" value="${esc((o.aliases || []).join(' ; '))}"></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.lieux.some(l => l.id !== id && norm(l.name) === norm(n))) throw new Error('Ce lieu existe déjà : utilisez-le, ou fusionnez les doublons.'); const v = { name: n, kind: fd.kind, adresse: fd.adresse.trim(), secteur: fd.secteur.trim(), aliases: fd.aliases.split(';').map(x => x.trim()).filter(Boolean) }; if (id) stamp(Object.assign(L(id), v)); else DB.lieux.push(stamp({ id: uid(), lien: '', ...v })); } },
-  anim: { title: 'Animateur', get: id => A(id) || { name: '', equipe: '', email: '', actif: true, note: '' }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Équipe / unité de rattachement</span><input name="equipe" list="dl-eq" value="${esc(o.equipe)}"><datalist id="dl-eq">${DB.settings.equipes.map(x => `<option value="${esc(x)}">`).join('')}</datalist></label><label class="f"><span>E-mail (sert uniquement à pré-remplir vos messages)</span><input name="email" type="email" value="${esc(o.email)}"></label><label class="chk"><input type="checkbox" name="actif"${o.actif === false ? '' : ' checked'}> Actif (proposé dans les listes)</label><label class="f"><span>Note</span><textarea name="note" rows="2">${esc(o.note)}</textarea></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.animateurs.some(a => a.id !== id && norm(a.name) === norm(n))) throw new Error('Cet animateur existe déjà.'); const v = { name: n, equipe: fd.equipe.trim(), email: fd.email.trim(), actif: !!fd.actif, note: fd.note.trim() }; if (id) stamp(Object.assign(A(id), v)); else DB.animateurs.push(stamp({ id: uid(), ...v })); if (v.equipe && !DB.settings.equipes.includes(v.equipe)) { DB.settings.equipes.push(v.equipe); touchSettings(); } } },
+  lieu: { title: 'Lieu', get: id => L(id) || { name: '', kind: 'salle', adresse: '', secteur: '', lien: '', aliases: [] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Nature</span><select name="kind">${opts([['salle', 'Salle'], ['agence', 'Agence'], ['site', 'Site']], o.kind)}</select></label><label class="f"><span>Adresse</span><input name="adresse" value="${esc(o.adresse)}"></label><div class="f"><span>Secteur géographique</span>${combo('secteur', 'secteur', o.secteur, '')}</div><label class="f"><span>Autres orthographes rencontrées (séparées par « ; »)</span><input name="aliases" value="${esc((o.aliases || []).join(' ; '))}"></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.lieux.some(l => l.id !== id && norm(l.name) === norm(n))) throw new Error('Ce lieu existe déjà : utilisez-le, ou fusionnez les doublons.'); const v = { name: n, kind: fd.kind, adresse: fd.adresse.trim(), secteur: fd.secteur.trim(), aliases: fd.aliases.split(';').map(x => x.trim()).filter(Boolean) }; if (id) stamp(Object.assign(L(id), v)); else DB.lieux.push(stamp({ id: uid(), lien: '', ...v })); } },
+  anim: { title: 'Animateur', get: id => A(id) || { name: '', equipe: '', email: '', actif: true, note: '' }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><div class="f"><span>Équipe / unité de rattachement</span>${combo('equipe', 'equipe', o.equipe, '')}</div><label class="f"><span>E-mail (sert uniquement à pré-remplir vos messages)</span><input name="email" type="email" value="${esc(o.email)}"></label><label class="chk"><input type="checkbox" name="actif"${o.actif === false ? '' : ' checked'}> Actif (proposé dans les listes)</label><label class="f"><span>Note</span><textarea name="note" rows="2">${esc(o.note)}</textarea></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.animateurs.some(a => a.id !== id && norm(a.name) === norm(n))) throw new Error('Cet animateur existe déjà.'); const v = { name: n, equipe: fd.equipe.trim(), email: fd.email.trim(), actif: !!fd.actif, note: fd.note.trim() }; if (id) stamp(Object.assign(A(id), v)); else DB.animateurs.push(stamp({ id: uid(), ...v })); if (v.equipe && !DB.settings.equipes.includes(v.equipe)) { DB.settings.equipes.push(v.equipe); touchSettings(); } } },
   duree: { title: 'Durée type', get: id => DB.settings.durees[id] || { l: '', h: 1 }, fields: o => `<label class="f"><span>Libellé</span><input name="l" value="${esc(o.l)}" required></label><label class="f"><span>Heures</span><input name="h" type="number" step="0.25" min="0.25" max="24" value="${o.h}" required></label>`, save(o, fd, id) { const v = { l: fd.l.trim(), h: +fd.h }; if (id !== undefined && id !== '') DB.settings.durees[+id] = v; else DB.settings.durees.push(v); touchSettings(); } },
   user: { title: 'Utilisateur', get: id => DB.users.find(x => x.id === id) || { name: '', role: 'lecteur', animateurId: '' }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Profil</span><select name="role">${opts(Object.entries(ROLES), o.role)}</select></label><label class="f"><span>Animateur correspondant (profil Animateur)</span><select name="animateurId">${opts(animOpts(true), o.animateurId, '— aucun —')}</select></label><label class="f"><span>Code personnel ${o.pin ? '(laisser vide pour le conserver)' : '(facultatif)'}</span><input type="password" name="pin" autocomplete="new-password"></label>${o.pin ? '<label class="chk"><input type="checkbox" name="nopin"> Supprimer le code</label>' : ''}`, async save(o, fd, id) { if (fd.pin && fd.pin.length < 4) throw new Error('Le code doit comporter au moins 4 caractères.'); const adm = DB.users.filter(u => u.role === 'admin' && u.id !== id).length; if (id && fd.role !== 'admin' && !adm) throw new Error('Il doit rester au moins un administrateur.'); if (id) { const u = DB.users.find(x => x.id === id); Object.assign(u, { name: fd.name.trim(), role: fd.role, animateurId: fd.animateurId }); if (fd.nopin) u.pin = ''; else if (fd.pin) u.pin = await hashPin(u.salt, fd.pin); stamp(u); if (S.user.id === id) S.user = u; } else DB.users.push(await makeUser(fd.name.trim(), fd.role, fd.pin, fd.animateurId)); } }
 };
@@ -282,7 +331,7 @@ function renderPreview() {
 }
 function doImport() {
   const o = { pastDone: $('#optPast').checked, skipDup: $('#optDup').checked }, rep = applyNeo(S.parsed, o);
-  S.parsed = null; persist(); S.f = { year: '' }; S.view = 'sessions'; render(); toast(`${rep.added} session(s) importée(s).`);
+  S.parsed = null; persist(); S.F.sessions = { scope: '' }; S.view = 'sessions'; render(); toast(`${rep.added} session(s) importée(s).`);
 }
 
 /* ===== Restauration ===== */

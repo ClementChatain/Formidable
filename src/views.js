@@ -5,6 +5,7 @@ const animOpts = (all) => DB.animateurs.filter(a => all || a.actif !== false).so
 const lieuOpts = () => [...DB.lieux].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(l => [l.id, l.name]);
 const statutBadge = id => `<span class="badge" style="--c:${ST[id].color}"><i>${ST[id].glyph}</i> ${ST[id].label}</span>`;
 const typeDot = id => `<span class="dot" style="background:${(T(id) || {}).color || '#888'}"></span>`;
+const combo = (name, src, value, dis, ph = '') => `<div class="combo" data-src="${src}"><input name="${name}" value="${esc(value)}" placeholder="${esc(ph)}" autocomplete="off"${dis}><button type="button" class="cb" tabindex="-1" aria-label="Afficher la liste"${dis}>▾</button><ul class="hide"></ul></div>`;
 const first = n => (n || '').split(' ')[0];
 
 function toast(msg, kind) { const t = document.createElement('div'); t.className = 'toast ' + (kind || ''); t.textContent = msg; $('#toasts').appendChild(t); setTimeout(() => t.remove(), kind === 'err' ? 7000 : 3500); }
@@ -13,11 +14,12 @@ function closeModal() { $$('.overlay').forEach(m => m.remove()); }
 function confirmBox(msg, ok = 'Confirmer', danger) { return new Promise(res => { const m = modal(`<div class="mbody"><p>${esc(msg)}</p></div><div class="mfoot"><button class="btn" data-x="0">Annuler</button><button class="btn ${danger ? 'danger' : 'primary'}" data-x="1">${esc(ok)}</button></div>`, 'small'); m.addEventListener('click', e => { const b = e.target.closest('[data-x]'); if (b) { closeModal(); res(b.dataset.x === '1'); } }); }); }
 
 /* ===== Barre de filtres ===== */
-function filterBar(period = true) {
-  const f = S.f, sel = (k, ph, list) => `<select data-f="${k}" aria-label="${ph}">${opts(list, f[k], ph)}</select>`;
+function filterBar(period = true, scope = false) {
+  const f = curF(), sel = (k, ph, list) => `<select data-f="${k}" aria-label="${ph}">${opts(list, f[k], ph)}</select>`;
   const years = [...new Set([...DB.sessions.map(s => s.date.slice(0, 4)), String(new Date().getFullYear())])].sort();
   const secteurs = [...new Set(DB.lieux.map(l => l.secteur).filter(Boolean))].sort();
   return `<div class="filters">
+    ${scope ? `<label class="fl">Afficher <select data-f="scope">${opts([['avenir', 'Sessions à venir (aujourd\'hui inclus)'], ['passees', 'Sessions passées'], ['', 'Toutes les sessions']], f.scope || '')}</select></label>` : ''}
     ${period ? `<label class="fl">Année <select data-f="year">${opts(years, f.year, 'Toutes')}</select></label>
     <label class="fl">Du <input type="date" data-f="from" value="${f.from || ''}"></label><label class="fl">Au <input type="date" data-f="to" value="${f.to || ''}"></label>` : ''}
     ${sel('type', 'Tous les types', typeOpts())}${DB.settings.themes.length ? sel('theme', 'Tous les thèmes', DB.settings.themes) : ''}
@@ -33,7 +35,7 @@ function bars(items, fmt = v => v, color = 'var(--accent)') {
   const max = Math.max(1, ...items.map(i => i.v));
   return `<div class="bars">${items.map(i => `<div class="bar"><span class="bl" title="${esc(i.name)}">${esc(i.name)}</span><span class="bt"><span style="width:${Math.max(2, i.v / max * 100)}%;background:${i.color || color}"></span></span><span class="bv">${fmt(i.v)}</span></div>`).join('') || '<p class="muted">Aucune donnée.</p>'}</div>`;
 }
-function periodLabel() { const f = S.f; if (f.from || f.to) return `Du ${fmtShort(f.from) || '…'} au ${fmtShort(f.to) || '…'}`; return f.year ? `Année ${f.year}` : 'Toutes périodes'; }
+function periodLabel() { const f = curF(); if (f.from || f.to) return `Du ${fmtShort(f.from) || '…'} au ${fmtShort(f.to) || '…'}`; return f.year ? `Année ${f.year}` : 'Toutes périodes'; }
 function viewDashboard() {
   const list = filtered(), r = stats(list), t = today();
   const kpi = (v, l, sub, c) => `<div class="kpi"${c ? ` style="--c:${c}"` : ''}><b>${v}</b><span>${l}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
@@ -41,7 +43,7 @@ function viewDashboard() {
   const tbl = (title, data, first) => `<div class="card"><h3>${title}</h3><div class="scroll"><table class="tbl"><thead><tr><th>${first}</th><th class="n">Sessions prévues</th><th class="n">Réalisées</th><th class="n">Annulées</th><th class="n">Reportées</th><th class="n">Heures prévues</th><th class="n">Heures réalisées</th></tr></thead><tbody>${data.map(e => `<tr><td>${esc(e.name)}</td><td class="n">${e.prev}</td><td class="n">${e.real}</td><td class="n">${e.ann}</td><td class="n">${e.rep}</td><td class="n">${fmtH(e.hPrev)}</td><td class="n"><b>${fmtH(e.hReal)}</b></td></tr>`).join('') || '<tr><td colspan="7" class="muted">Aucune donnée.</td></tr>'}</tbody></table></div></div>`;
   const months = Object.keys(r.mois).sort(), mmax = Math.max(1, ...months.map(m => sum(Object.values(r.mois[m]))));
   const stack = ['realisee', 'confirmee', 'planifiee', 'a_planifier', 'reportee', 'annulee'];
-  const chart = months.length ? `<div class="mchart">${months.map(m => `<div class="mcol" title="${cap(fmtDate(m + '-01', { month: 'long', year: 'numeric' }))}"><div class="mstack" style="height:${sum(Object.values(r.mois[m])) / mmax * 100}%">${stack.filter(k => r.mois[m][k]).map(k => `<span style="flex:${r.mois[m][k]};background:${ST[k].color}" title="${ST[k].label} : ${r.mois[m][k]}">${r.mois[m][k]}</span>`).join('')}</div><em>${fmtDate(m + '-01', { month: 'short' })}${S.f.year ? '' : ' ' + m.slice(2, 4)}</em></div>`).join('')}</div>` : '<p class="muted">Aucune donnée.</p>';
+  const chart = months.length ? `<div class="mchart">${months.map(m => `<div class="mcol" title="${cap(fmtDate(m + '-01', { month: 'long', year: 'numeric' }))}"><div class="mstack" style="height:${sum(Object.values(r.mois[m])) / mmax * 100}%">${stack.filter(k => r.mois[m][k]).map(k => `<span style="flex:${r.mois[m][k]};background:${ST[k].color}" title="${ST[k].label} : ${r.mois[m][k]}">${r.mois[m][k]}</span>`).join('')}</div><em>${fmtDate(m + '-01', { month: 'short' })}${curF().year ? '' : ' ' + m.slice(2, 4)}</em></div>`).join('')}</div>` : '<p class="muted">Aucune donnée.</p>';
   const al = computeAlerts().filter(a => a.sev === 'warn' && filtered([DB.sessions.find(s => s.id === a.sid)]).length).length;
   return `<div class="page-h"><div><h1>Tableau de bord</h1><p class="muted">${esc(periodLabel())}${DB.settings.org ? ' · ' + esc(DB.settings.org) : ''} · ${list.length} session${list.length > 1 ? 's' : ''} correspondant aux filtres</p></div>
     <div class="actions noprint">${can.exp() ? '<button class="btn" data-act="exportBilan">Exporter le bilan (Excel)</button>' : ''}<button class="btn" data-act="print">Imprimer / PDF</button></div></div>
@@ -84,7 +86,7 @@ function calNav() {
   <div class="calopt">${c.mode === 'res' ? `<label>Lignes <select data-c="group">${opts([['anim', 'Animateurs'], ['lieu', 'Lieux'], ['type', 'Types de formation']], c.group || 'anim')}</select></label>` : ''}<label>Couleur <select data-c="color">${opts([['statut', 'selon le statut'], ['type', 'selon le type']], c.color)}</select></label></div></div>`;
 }
 function viewPlanning() {
-  const c = S.cal, list = filtered(DB.sessions, { ...S.f, year: '', from: '', to: '' }), by = {};
+  const c = S.cal, list = filtered(DB.sessions, { ...curF(), year: '', from: '', to: '', scope: '' }), by = {};
   list.forEach(s => (by[s.date] ||= []).push(s));
   Object.values(by).forEach(a => a.sort((x, y) => (x.debut || '99') < (y.debut || '99') ? -1 : 1));
   let body = '';
@@ -123,7 +125,7 @@ function viewSessions() {
   list.sort((a, b) => (val(a) < val(b) ? -1 : val(a) > val(b) ? 1 : 0) * d);
   const alerts = computeAlerts(), warn = new Set(alerts.filter(a => a.sev === 'warn').map(a => a.sid));
   const th = (key, l, cls = '') => `<th class="${cls}"><button class="sortb" data-act="sort" data-k="${key}">${l}${k === key ? (d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
-  return `<div class="page-h"><div><h1>Sessions</h1><p class="muted">${list.length} session${list.length > 1 ? 's' : ''} · ${fmtH(sum(list.filter(s => ACTIVE.includes(s.statut)), dureeEff))} (hors annulées/reportées)</p></div><div class="actions noprint">${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportSessions">Exporter (Excel)</button>' : ''}</div></div>${filterBar()}
+  return `<div class="page-h"><div><h1>Sessions</h1><p class="muted">${list.length} session${list.length > 1 ? 's' : ''} · ${fmtH(sum(list.filter(s => ACTIVE.includes(s.statut)), dureeEff))} (hors annulées/reportées)</p></div><div class="actions noprint">${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportSessions">Exporter (Excel)</button>' : ''}</div></div>${filterBar(true, true)}
   <div class="scroll"><table class="tbl hover"><thead><tr>${th('date', 'Date')}<th>Horaires</th>${th('type', 'Formation')}${th('lieu', 'Lieu')}${th('tit', 'Titulaire')}<th>Suppléant</th>${th('duree', 'Durée', 'n')}<th class="n">Particip.</th>${th('statut', 'Statut')}<th></th></tr></thead><tbody>${list.map(s => `<tr data-act="open" data-id="${s.id}" tabindex="0"><td>${fmtDate(s.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</td><td>${s.debut ? s.debut + (s.fin ? '–' + s.fin : '') : '<span class="muted">—</span>'}</td><td>${typeDot(s.typeId)}<b>${esc(s.titre || typeName(s.typeId))}</b>${s.groupeId ? ' <span class="tag" title="Session d\'une action à sessions multiples">série</span>' : ''}<br><small class="muted">${esc(typeName(s.typeId))}${s.theme ? ' · ' + esc(s.theme) : ''}</small></td><td>${esc(lieuName(s)) || '<span class="muted">—</span>'}</td><td>${esc(animName(s.titulaireId)) || '<span class="warnt">à désigner</span>'}</td><td>${esc(animName(s.suppleantId)) || '<span class="muted">—</span>'}</td><td class="n">${fmtH(dureeEff(s))}</td><td class="n">${s.presents != null ? s.presents : '–'} / ${s.prevus != null ? s.prevus : '–'}</td><td>${statutBadge(s.statut)}</td><td>${warn.has(s.id) ? '<span class="warnt" title="Alerte : voir l\'onglet Alertes">⚠</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="10" class="muted pad">Aucune session ne correspond aux filtres.</td></tr>'}</tbody></table></div>`;
 }
 
@@ -153,8 +155,8 @@ function sessionForm(s, isNew) {
   ${!isNew && conflictsFor(s).length ? `<p class="info warn">${conflictsFor(s).map(a => esc(a.msg)).join('<br>')}</p>` : ''}
   <fieldset><legend>Informations générales</legend><div class="fg">
     ${inp('titre', 'Intitulé de la formation')}
-    <label class="f"><span>Type de formation *</span><select name="typeId" required${d()}>${opts(typeOpts(), s.typeId, '— choisir —')}</select></label>
-    <label class="f"><span>Thème / produit</span><input name="theme" list="dl-themes" value="${esc(s.theme)}"${d()}><datalist id="dl-themes">${DB.settings.themes.map(t => `<option value="${esc(t)}">`).join('')}</datalist></label>
+    <div class="f"><span>Type de formation * <small class="muted">(choisir ou saisir un nouveau)</small></span>${combo('typeId', 'type', (T(s.typeId) || {}).name || '', d(), 'Néo, SPECIFICA…')}</div>
+    <div class="f"><span>Thème / produit</span>${combo('theme', 'theme', s.theme, d())}</div>
     ${txt('objectif', 'Objectif de la formation')}
     ${inp('date', 'Date *', 'date', false, 'required')}${inp('debut', 'Heure de début', 'time')}${inp('fin', 'Heure de fin', 'time')}
     <label class="f"><span>Durée prévue (heures) <button type="button" class="lnk" data-act="calcDuree">calculer depuis les horaires</button></span><input type="number" name="duree" min="0" max="24" step="0.25" value="${s.duree ?? ''}"${d()}><span class="presets">${DB.settings.durees.map(x => `<button type="button" class="chipb" data-act="preset" data-h="${x.h}"${d()}>${esc(x.l)} (${x.h} h)</button>`).join('')}<small id="dureeFmt" class="muted"></small></span></label>
@@ -169,20 +171,20 @@ function sessionForm(s, isNew) {
   </div></fieldset>
   <fieldset><legend>Lieu</legend><div class="fg">
     <label class="f"><span>Modalité</span><select name="modalite"${d()}>${opts(Object.entries(MODAL), s.modalite)}</select></label>
-    <label class="f lieu-p"><span>Agence, site ou salle</span><select name="lieuId"${d()}>${opts(lieuOpts(), s.lieuId, '— à définir —')}</select></label>
+    <div class="f lieu-p"><span>Agence, site ou salle <small class="muted">(choisir ou saisir un nouveau lieu)</small></span>${combo('lieuId', 'lieu', (L(s.lieuId) || {}).name || '', d(), 'à définir')}</div>
     <label class="f lieu-d"><span>Lien de connexion</span><input name="lienVisio" value="${esc(s.lienVisio)}"${d(true)}></label>
     ${inp('adresse', 'Précision d\'adresse / secteur')}
   </div></fieldset>
   <fieldset><legend>Animateurs</legend><div class="fg">
-    <label class="f"><span>Animateur titulaire</span><select name="titulaireId"${d()}>${opts(animOpts(), s.titulaireId, '— à désigner —')}${s.titulaireId && !A(s.titulaireId)?.actif === false ? '' : ''}</select></label>
-    <label class="f"><span>Animateur suppléant (en cas d'absence)</span><select name="suppleantId"${d()}>${opts(animOpts(), s.suppleantId, '— aucun —')}</select></label>
+    <div class="f"><span>Animateur titulaire <small class="muted">(choisir ou saisir un nouveau)</small></span>${combo('titulaireId', 'anim', animName(s.titulaireId), d(), 'à désigner')}</div>
+    <div class="f"><span>Animateur suppléant (en cas d'absence)</span>${combo('suppleantId', 'anim', animName(s.suppleantId), d(), 'aucun')}</div>
     <label class="chk wide"><input type="checkbox" name="suppIntervenu"${s.suppIntervenu ? ' checked' : ''}${d(true)}> Le suppléant est intervenu à la place du titulaire (la session lui est alors comptée)</label>
-    <div class="f wide"><span>Coanimateur(s) éventuel(s)</span><div class="checks">${animOpts().map(([id, n]) => `<label class="chk"><input type="checkbox" name="coanim" value="${id}"${co.has(id) ? ' checked' : ''}${d()}> ${esc(n)}</label>`).join('') || '<small class="muted">Aucun animateur référencé.</small>'}</div></div>
+    <div class="f wide"><span>Coanimateur(s) éventuel(s)</span><div class="checks">${animOpts(true).filter(([id]) => A(id).actif !== false || co.has(id)).map(([id, n]) => `<label class="chk"><input type="checkbox" name="coanim" value="${id}"${co.has(id) ? ' checked' : ''}${d()}> ${esc(n)}</label>`).join('') || '<small class="muted">Aucun animateur référencé.</small>'}</div>${combo('coanimNew', 'anim', '', d(), 'Autre coanimateur (nouveau ou existant)…')}</div>
     ${inp('coanimRole', 'Rôle des coanimateurs (ex. co-animation DCO, binôme)')}
   </div></fieldset>
   <fieldset><legend>Public concerné</legend><div class="fg">
     ${inp('caisse', 'Caisse / direction / secteur / unité')}${inp('agences', 'Agence ou groupe d\'agences')}${inp('demandeur', 'Demandeur')}
-    <label class="f"><span>Population concernée</span><input name="population" list="dl-pop" value="${esc(s.population)}"${d()}><datalist id="dl-pop">${DB.settings.populations.map(t => `<option value="${esc(t)}">`).join('')}</datalist></label>
+    <div class="f"><span>Population concernée</span>${combo('population', 'population', s.population, d())}</div>
     ${inp('profil', 'Métier / profil des participants')}
     ${inp('prevus', 'Participants prévus', 'number', true, 'min="0"')}${inp('presents', 'Participants présents', 'number', true, 'min="0"')}
     ${txt('participants', 'Liste des participants (si nécessaire)', true, 3)}
@@ -211,7 +213,7 @@ function viewEchanges() {
   const n = DB.sessions.length;
   return `<div class="page-h"><div><h1>Import / Export / Partage</h1></div></div>
   ${imp ? `<div class="card"><h3>Importer le planning Excel existant</h3><p>Sélectionnez le fichier <b>Planning formation NéoV2</b> (.xlsx). Il est lu <b>localement dans votre navigateur</b> : rien n'est envoyé nulle part. Un aperçu s'affiche avant toute écriture.</p><input type="file" id="xlsxIn" accept=".xlsx"><div id="impPreview"></div></div>` : ''}
-  ${exp ? `<div class="card"><h3>Exports Excel</h3><p class="muted">Les exports tiennent compte des filtres en cours (onglets Tableau de bord / Sessions) : ${filtered().length} session(s) sur ${n}. Pensez à réinitialiser les filtres pour tout exporter.</p>
+  ${exp ? `<div class="card"><h3>Exports Excel</h3><p class="muted">Depuis cet onglet, les exports portent sur les ${n} sessions enregistrées. Les boutons « Exporter » des onglets Tableau de bord et Sessions respectent, eux, les filtres affichés.</p>
     <div class="actions wrap"><button class="btn" data-act="exportSessions">Toutes les sessions filtrées</button><button class="btn" data-act="exportBilan">Bilan d'activité (synthèses + sessions)</button><button class="btn" data-act="exportBy" data-v="anim">Planning par animateur</button><button class="btn" data-act="exportBy" data-v="lieu">Planning par lieu / agence</button><button class="btn" data-act="exportBy" data-v="type">Planning par type de formation</button><button class="btn" data-act="exportIcs">Calendrier (.ics)</button></div></div>` : ''}
   ${can.imp() ? `<div class="card"><h3>Fichier de données partagé</h3>
     <p>Les données vivent dans le navigateur de chaque poste. Pour travailler à plusieurs, liez l'application à <b>un fichier .json placé sur un dossier partagé</b> de l'entreprise : chaque modification y est enregistrée et fusionnée automatiquement avec celles des collègues (même session modifiée par deux personnes : la plus récente l'emporte). Les droits d'accès au dossier protègent les données.</p>
