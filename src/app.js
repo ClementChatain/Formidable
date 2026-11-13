@@ -41,6 +41,7 @@ document.addEventListener('change', e => {
   else if (t.dataset.c) { S.cal[t.dataset.c] = t.value; render(); }
   else if (t.id === 'xlsxIn') importFile(t.files[0]);
   else if (t.id === 'restoreIn') restoreFlow(t.files[0], !DB.users.length);
+  else if (t.name === 'typeId' && t.closest('#sf')) { const tp = T(findByName('type', t.value)), pf = t.form.prepH; if (tp && pf && !pf.disabled && (pf.value === '' || pf.dataset.auto === '1')) { pf.value = tp.prepH > 0 ? tp.prepH : ''; pf.dataset.auto = '1'; } formSync(); }
   else if (t.name === 'statut' && t.closest('#sf')) formSync();
   else if (t.name === 'modalite' && t.closest('#sf')) formSync();
   else if (t.id === 'optPast' || t.id === 'optDup') renderPreview();
@@ -49,6 +50,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.f === 'q') { clearTimeout(TMR); TMR = setTimeout(() => { curF().q = t.value; render(); }, 250); }
   else if (t.hasAttribute('data-hq')) { clearTimeout(TMR); TMR = setTimeout(() => { S.hq = t.value; render(); }, 250); }
+  else if (t.closest('#sf') && t.name === 'prepH') t.dataset.auto = '';
   else if (t.closest('#sf') && (t.name === 'date' || t.name === 'duree')) formSync();
 });
 document.addEventListener('submit', async e => {
@@ -99,10 +101,10 @@ const ACT = {
   rmDate: (el, v) => { S.xd = S.xd.filter(x => x !== v); xdRender(); },
   quick: (_, v) => {
     const f = $('#sf'); f.statut.value = v; formSync();
-    if (v === 'realisee') { if (!f.dureeReelle.value) f.dureeReelle.value = f.duree.value; $('#sect-public').open = true; f.presents.focus(); }
+    if (v === 'realisee') { if (!f.dureeReelle.value) f.dureeReelle.value = f.duree.value; if (!f.prepReelle.value && f.prepH.value) f.prepReelle.value = f.prepH.value; $('#sect-public').open = true; f.presents.focus(); }
     else { if (!f.dateDecision.value) f.dateDecision.value = today(); f.motif.focus(); }
   },
-  dup: () => { const s = DB.sessions.find(x => x.id === S.cur); closeModal(); openSession(null, '', { ...structuredClone(s), id: uid(), date: '', statut: 'planifiee', dureeReelle: null, presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', groupeId: '', remplaceId: '', suppIntervenu: false }); },
+  dup: () => { const s = DB.sessions.find(x => x.id === S.cur); closeModal(); openSession(null, '', { ...structuredClone(s), id: uid(), date: '', statut: 'planifiee', dureeReelle: null, prepReelle: null, prepDate: '', prepDebut: '', presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', groupeId: '', remplaceId: '', suppIntervenu: false }); },
   del: async () => { const s = DB.sessions.find(x => x.id === S.cur); if (!await confirmBox(`Supprimer définitivement « ${sessionLabel(s)} » ? (Préférez le statut « Annulée » pour conserver la trace.)`, 'Supprimer', true)) return; DB.sessions = DB.sessions.filter(x => x.id !== s.id); DB.del[s.id] = new Date().toISOString(); logH('Suppression', s, 'Session supprimée'); persist(); closeModal(); render(); },
   mail: () => { const s = DB.sessions.find(x => x.id === S.cur), to = involved(s).map(i => (A(i) || {}).email).filter(Boolean).join(';'); const body = `Bonjour,\n\nSession : ${s.titre || typeName(s.typeId)}\nDate : ${fmtDate(s.date)}${s.debut ? ' de ' + s.debut + (s.fin ? ' à ' + s.fin : '') : ''}\nLieu : ${lieuName(s) || 'à définir'}${s.lienVisio ? '\nLien : ' + s.lienVisio : ''}\nStatut : ${ST[s.statut].label}${s.motif ? '\nMotif : ' + s.motif : ''}${s.nouvelleDate ? '\nNouvelle date : ' + fmtDate(s.nouvelleDate) : ''}\nTitulaire : ${animName(s.titulaireId) || '—'}${s.suppleantId ? '\nSuppléant : ' + animName(s.suppleantId) : ''}\n\nCordialement,\n${S.user.name}`; location.href = `mailto:${to}?subject=${encodeURIComponent('Formation – ' + (s.titre || typeName(s.typeId)) + ' – ' + fmtShort(s.date))}&body=${encodeURIComponent(body)}`; },
   ics1: () => { const s = DB.sessions.find(x => x.id === S.cur); download(icsFor([s]), `formation-${s.date}-${norm(s.titre || typeName(s.typeId)).replace(/ /g, '-').slice(0, 40)}.ics`); toast('Fichier calendrier téléchargé : ouvrez-le (double-clic) pour l\'ajouter à Outlook.'); },
@@ -137,10 +139,10 @@ function dlXlsx(sheets, name) { download(buildXlsx(sheets), `${name}-${today()}.
 /* ===== Exports ===== */
 function exportBilan() {
   const list = filtered(), r = stats(list), pct = x => x === null ? '' : Math.round(x * 1000) / 10;
-  const rows = o => Object.values(o).sort((a, b) => b.hReal - a.hReal || b.hPrev - a.hPrev).map(e => [e.name, e.prev, e.real, e.ann, e.rep, e.hPrev, e.hReal]);
-  const H = n => [n, 'Sessions prévues', 'Sessions réalisées', 'Annulées', 'Reportées', 'Heures prévues', 'Heures réalisées'];
+  const rows = o => Object.values(o).sort((a, b) => b.hReal - a.hReal || b.hPrev - a.hPrev).map(e => [e.name, e.prev, e.real, e.ann, e.rep, e.hPrev, e.hReal, e.pPrev, e.pReal]);
+  const H = n => [n, 'Sessions prévues', 'Sessions réalisées', 'Annulées', 'Reportées', 'Heures prévues', 'Heures réalisées', 'Préparation prévue (h)', 'Préparation réalisée (h)'];
   dlXlsx([
-    { name: 'Synthèse', rows: [['Indicateur', 'Valeur'], ['Période', periodLabel()], ['Entité', DB.settings.org], ['Sessions au total', r.n], ['À planifier', r.st.a_planifier], ['Planifiées', r.st.planifiee], ['Confirmées', r.st.confirmee], ['Réalisées', r.st.realisee], ['Reportées', r.st.reportee], ['Annulées', r.st.annulee], ['Heures planifiées (hors annulées/reportées)', r.hPlan], ['Heures réalisées', r.hReal], ['Participants prévus (sessions réalisées)', r.prevus], ['Participants présents', r.presents], ['Taux de participation (%)', pct(r.taux)], ['Édité le', new Date().toLocaleString('fr-FR')]] },
+    { name: 'Synthèse', rows: [['Indicateur', 'Valeur'], ['Période', periodLabel()], ['Entité', DB.settings.org], ['Sessions au total', r.n], ['À planifier', r.st.a_planifier], ['Planifiées', r.st.planifiee], ['Confirmées', r.st.confirmee], ['Réalisées', r.st.realisee], ['Reportées', r.st.reportee], ['Annulées', r.st.annulee], ['Heures planifiées (hors annulées/reportées)', r.hPlan], ['Heures réalisées', r.hReal], ['Préparation prévue (h)', r.pPlan], ['Préparation réalisée (h)', r.pReal], ['Temps total réalisé : animation + préparation (h)', r.hReal + r.pReal], ['Participants prévus (sessions réalisées)', r.prevus], ['Participants présents', r.presents], ['Taux de participation (%)', pct(r.taux)], ['Édité le', new Date().toLocaleString('fr-FR')]] },
     { name: 'Animateurs', rows: [H('Animateur'), ...rows(r.anim)] }, { name: 'Types', rows: [H('Type'), ...rows(r.type)] },
     { name: 'Lieux', rows: [H('Lieu'), ...rows(r.lieu)] }, { name: 'Secteurs', rows: [H('Secteur'), ...rows(r.secteur)] },
     { name: 'Par mois', rows: [['Mois', ...STATUTS.map(s => s.label)], ...Object.keys(r.mois).sort().map(m => [m, ...STATUTS.map(s => r.mois[m][s.id])])] },
@@ -211,11 +213,12 @@ function formSync() {
   const dist = f.modalite.value === 'distance';
   $('.lieu-p', f).classList.toggle('hide', dist); $('.lieu-d', f).classList.toggle('hide', !dist);
   $('#annee').value = f.date.value ? f.date.value.slice(0, 4) : '';
+  const tp = T(findByName('type', f.typeId.value)); $('#prepHint').textContent = tp && tp.prepH > 0 ? `(défaut « ${tp.name} » : ${fmtH(tp.prepH)})` : '';
   const h = parseFloat(f.duree.value); $('#dureeFmt').textContent = isNaN(h) ? '' : '= ' + fmtH(h);
 }
 function xdRender() { $('#xdl').innerHTML = (S.xd || []).map(d => `<span class="tag lg">${fmtShort(d)} <button type="button" class="lnk" data-act="rmDate" data-v="${d}">retirer</button></span>`).join(''); }
 
-const FL = { titre: 'Intitulé', typeId: 'Type', theme: 'Thème', objectif: 'Objectif', date: 'Date', debut: 'Début', fin: 'Fin', duree: 'Durée prévue', dureeReelle: 'Durée réelle', statut: 'Statut', modalite: 'Modalité', lieuId: 'Lieu', lienVisio: 'Lien visio', adresse: 'Adresse', titulaireId: 'Titulaire', suppleantId: 'Suppléant', suppIntervenu: 'Suppléant intervenu', coanim: 'Coanimateurs', coanimRole: 'Rôle coanimation', caisse: 'Caisse/unité', agences: 'Agences', demandeur: 'Demandeur', population: 'Population', profil: 'Profil', prevus: 'Participants prévus', presents: 'Participants présents', participants: 'Participants', dateDemande: 'Date de la demande', origine: 'Origine de la demande', organisateur: 'Organisateur', logistique: 'Logistique', support: 'Support', docs: 'Documents', commentaire: 'Commentaire', motif: 'Motif', dateDecision: 'Date de décision', nouvelleDate: 'Nouvelle date' };
+const FL = { titre: 'Intitulé', typeId: 'Type', theme: 'Thème', objectif: 'Objectif', date: 'Date', debut: 'Début', fin: 'Fin', duree: 'Durée prévue', prepH: 'Préparation prévue (h)', prepReelle: 'Préparation réelle (h)', prepDate: 'Date de préparation', prepDebut: 'Début de préparation', dureeReelle: 'Durée réelle', statut: 'Statut', modalite: 'Modalité', lieuId: 'Lieu', lienVisio: 'Lien visio', adresse: 'Adresse', titulaireId: 'Titulaire', suppleantId: 'Suppléant', suppIntervenu: 'Suppléant intervenu', coanim: 'Coanimateurs', coanimRole: 'Rôle coanimation', caisse: 'Caisse/unité', agences: 'Agences', demandeur: 'Demandeur', population: 'Population', profil: 'Profil', prevus: 'Participants prévus', presents: 'Participants présents', participants: 'Participants', dateDemande: 'Date de la demande', origine: 'Origine de la demande', organisateur: 'Organisateur', logistique: 'Logistique', support: 'Support', docs: 'Documents', commentaire: 'Commentaire', motif: 'Motif', dateDecision: 'Date de décision', nouvelleDate: 'Nouvelle date' };
 function showVal(k, v) {
   if (Array.isArray(v)) return v.map(x => typeof x === 'object' ? x.nom : animName(x)).join(', ') || '∅';
   if (v === '' || v === null || v === undefined) return '∅';
@@ -225,10 +228,10 @@ function showVal(k, v) {
 }
 async function saveSession(form) {
   const base = S.curNew ? S.tpl : DB.sessions.find(x => x.id === S.cur), old = structuredClone(base), s = structuredClone(base);
-  const strF = ['titre', 'typeId', 'theme', 'objectif', 'date', 'debut', 'fin', 'statut', 'modalite', 'lieuId', 'lienVisio', 'adresse', 'titulaireId', 'suppleantId', 'coanimRole', 'caisse', 'agences', 'demandeur', 'population', 'profil', 'participants', 'dateDemande', 'origine', 'organisateur', 'logistique', 'support', 'commentaire', 'motif', 'dateDecision', 'nouvelleDate'];
+  const strF = ['titre', 'typeId', 'theme', 'objectif', 'date', 'debut', 'fin', 'prepDate', 'prepDebut', 'statut', 'modalite', 'lieuId', 'lienVisio', 'adresse', 'titulaireId', 'suppleantId', 'coanimRole', 'caisse', 'agences', 'demandeur', 'population', 'profil', 'participants', 'dateDemande', 'origine', 'organisateur', 'logistique', 'support', 'commentaire', 'motif', 'dateDecision', 'nouvelleDate'];
   const ok = n => { const e = form.elements[n]; return e && !(e.length ? e[0].disabled : e.disabled) ? e : null; };
   strF.forEach(n => { const e = ok(n); if (e) s[n] = e.value.trim(); });
-  ['duree', 'dureeReelle', 'prevus', 'presents'].forEach(n => { const e = ok(n); if (e) s[n] = e.value === '' ? null : +e.value; });
+  ['duree', 'dureeReelle', 'prepH', 'prepReelle', 'prevus', 'presents'].forEach(n => { const e = ok(n); if (e) s[n] = e.value === '' ? null : +e.value; });
   if (ok('suppIntervenu')) s.suppIntervenu = form.suppIntervenu.checked;
   if (ok('coanim')) s.coanim = $$('input[name=coanim]:checked', form).map(x => x.value);
   if (ok('docs')) s.docs = form.docs.value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [n, ...r] = l.split('|'); return { nom: n.trim(), lien: r.join('|').trim() }; });
@@ -248,6 +251,8 @@ async function saveSession(form) {
   ['theme', 'population'].forEach(f => { const list = DB.settings[f === 'theme' ? 'themes' : 'populations']; if (s[f] && !list.some(x => norm(x) === norm(s[f]))) { list.push(s[f]); touchSettings(); } else if (s[f]) s[f] = list.find(x => norm(x) === norm(s[f])); });
   if (s.suppleantId === '' ) s.suppIntervenu = false;
   s.coanim = (s.coanim || []).filter(x => x !== s.titulaireId);
+  if (s.prepH == null) { const t = T(s.typeId); if (t && t.prepH > 0) s.prepH = t.prepH; }
+  if (s.statut === 'realisee' && s.prepReelle == null && s.prepH != null) s.prepReelle = s.prepH;
   if (!s.titre) s.titre = typeName(s.typeId) + (s.modalite === 'distance' ? ' – à distance' : (s.lieuId ? ' – ' + (L(s.lieuId) || {}).name : ''));
   if (['annulee', 'reportee'].includes(s.statut) && s.statut !== old.statut) { s.dateDecision ||= today(); s.decisionPar = S.user.name; }
   if (s.statut === 'realisee' && s.dureeReelle == null) s.dureeReelle = s.duree;
@@ -265,7 +270,7 @@ async function saveSession(form) {
     const rest = ch.filter(k => k !== 'statut' && !an.includes(k)); if (rest.length) logH('Modification', s, rest.map(k => `${FL[k]} : ${showVal(k, old[k])} → ${showVal(k, s[k])}`).join('\n'));
     if (!ch.length) { closeModal(); return; }
     if (s.statut === 'reportee' && s.nouvelleDate && form.creerRemplacement && form.creerRemplacement.checked && !DB.sessions.some(x => x.remplaceId === s.id)) {
-      const r = stamp(newSession({ ...structuredClone(s), id: uid(), date: s.nouvelleDate, statut: 'a_planifier', dureeReelle: null, presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', remplaceId: s.id, suppIntervenu: false, created: new Date().toISOString() }));
+      const r = stamp(newSession({ ...structuredClone(s), id: uid(), date: s.nouvelleDate, statut: 'a_planifier', dureeReelle: null, prepReelle: null, prepDate: '', prepDebut: '', presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', remplaceId: s.id, suppIntervenu: false, created: new Date().toISOString() }));
       DB.sessions.push(r); logH('Création', r, `Session de remplacement de « ${sessionLabel(s)} »`); toast('Session de remplacement créée au ' + fmtShort(r.date) + '.');
     }
   }
@@ -276,7 +281,7 @@ async function saveSession(form) {
 /* ===== Paramètres : dialogues ===== */
 function promptBox(label, val = '', type = 'text') { return new Promise(res => { const m = modal(`<form><div class="mbody"><label class="f"><span>${esc(label)}</span><input type="${type}" value="${esc(val)}" name="v" autocomplete="off"></label></div><div class="mfoot"><button type="button" class="btn" data-x="0">Annuler</button><button class="btn primary">OK</button></div></form>`, 'small'); m.querySelector('form').addEventListener('submit', e => { e.preventDefault(); e.stopPropagation(); const v = e.target.v.value.trim(); closeModal(); res(v); }); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } }); }); }
 const EDITORS = {
-  type: { title: 'Type de formation', get: id => DB.settings.types.find(x => x.id === id) || { name: '', color: PALETTE[DB.settings.types.length % PALETTE.length] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Couleur</span><input type="color" name="color" value="${o.color}"></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.settings.types.some(t => t.id !== id && norm(t.name) === norm(n))) throw new Error('Ce type existe déjà.'); if (id) Object.assign(DB.settings.types.find(x => x.id === id), { name: n, color: fd.color }); else DB.settings.types.push({ id: uid(), name: n, color: fd.color }); touchSettings(); } },
+  type: { title: 'Type de formation', get: id => DB.settings.types.find(x => x.id === id) || { name: '', color: PALETTE[DB.settings.types.length % PALETTE.length] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Couleur</span><input type="color" name="color" value="${o.color}"></label><label class="f"><span>Heures de préparation par défaut (par session)</span><input type="number" name="prepH" min="0" max="80" step="0.25" value="${o.prepH ?? 0}"></label><p class="muted">Proposées automatiquement à la création d'une session de ce type ; modifiables session par session.</p>`, save(o, fd, id) { const n = fd.name.trim(); const ph = Math.max(0, +fd.prepH || 0); if (DB.settings.types.some(t => t.id !== id && norm(t.name) === norm(n))) throw new Error('Ce type existe déjà.'); if (id) Object.assign(DB.settings.types.find(x => x.id === id), { name: n, color: fd.color, prepH: ph }); else DB.settings.types.push({ id: uid(), name: n, color: fd.color, prepH: ph }); touchSettings(); } },
   lieu: { title: 'Lieu', get: id => L(id) || { name: '', kind: 'salle', adresse: '', secteur: '', lien: '', aliases: [] }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><label class="f"><span>Nature</span><select name="kind">${opts([['salle', 'Salle'], ['agence', 'Agence'], ['site', 'Site']], o.kind)}</select></label><label class="f"><span>Adresse</span><input name="adresse" value="${esc(o.adresse)}"></label><div class="f"><span>Secteur géographique</span>${combo('secteur', 'secteur', o.secteur, '')}</div><label class="f"><span>Autres orthographes rencontrées (séparées par « ; »)</span><input name="aliases" value="${esc((o.aliases || []).join(' ; '))}"></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.lieux.some(l => l.id !== id && norm(l.name) === norm(n))) throw new Error('Ce lieu existe déjà : utilisez-le, ou fusionnez les doublons.'); const v = { name: n, kind: fd.kind, adresse: fd.adresse.trim(), secteur: fd.secteur.trim(), aliases: fd.aliases.split(';').map(x => x.trim()).filter(Boolean) }; if (id) stamp(Object.assign(L(id), v)); else DB.lieux.push(stamp({ id: uid(), lien: '', ...v })); } },
   anim: { title: 'Animateur', get: id => A(id) || { name: '', equipe: '', email: '', actif: true, note: '' }, fields: o => `<label class="f"><span>Nom</span><input name="name" value="${esc(o.name)}" required></label><div class="f"><span>Équipe / unité de rattachement</span>${combo('equipe', 'equipe', o.equipe, '')}</div><label class="f"><span>E-mail (sert uniquement à pré-remplir vos messages)</span><input name="email" type="email" value="${esc(o.email)}"></label><label class="chk"><input type="checkbox" name="actif"${o.actif === false ? '' : ' checked'}> Actif (proposé dans les listes)</label><label class="f"><span>Note</span><textarea name="note" rows="2">${esc(o.note)}</textarea></label>`, save(o, fd, id) { const n = fd.name.trim(); if (DB.animateurs.some(a => a.id !== id && norm(a.name) === norm(n))) throw new Error('Cet animateur existe déjà.'); const v = { name: n, equipe: fd.equipe.trim(), email: fd.email.trim(), actif: !!fd.actif, note: fd.note.trim() }; if (id) stamp(Object.assign(A(id), v)); else DB.animateurs.push(stamp({ id: uid(), ...v })); if (v.equipe && !DB.settings.equipes.includes(v.equipe)) { DB.settings.equipes.push(v.equipe); touchSettings(); } } },
   duree: { title: 'Durée type', get: id => DB.settings.durees[id] || { l: '', h: 1 }, fields: o => `<label class="f"><span>Libellé</span><input name="l" value="${esc(o.l)}" required></label><label class="f"><span>Heures</span><input name="h" type="number" step="0.25" min="0.25" max="24" value="${o.h}" required></label>`, save(o, fd, id) { const v = { l: fd.l.trim(), h: +fd.h }; if (id !== undefined && id !== '') DB.settings.durees[+id] = v; else DB.settings.durees.push(v); touchSettings(); } },
