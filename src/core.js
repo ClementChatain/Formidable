@@ -55,7 +55,7 @@ function newDB() {
     animateurs: [], users: [], sessions: [], history: []
   };
 }
-function loadDB() { try { const t = localStorage.getItem(KEY); if (t) { DB = JSON.parse(t); return true; } } catch (e) { console.error(e); } DB = newDB(); return false; }
+function loadDB() { try { const t = localStorage.getItem(KEY); if (t) { DB = migrateDB(JSON.parse(t)); return true; } } catch (e) { console.error(e); } DB = newDB(); return false; }
 const stamp = o => { o.mod = new Date().toISOString(); return o; };
 const touchSettings = () => { DB.settingsMod = new Date().toISOString(); };
 function persist() {
@@ -76,7 +76,7 @@ function mergeDB(a, b) {
   const h = new Map(); for (const x of [...(a.history || []), ...(b.history || [])]) h.set(x.id, x);
   r.history = [...h.values()].sort((x, y) => x.ts < y.ts ? -1 : 1);
   if ((b.settingsMod || '') > (a.settingsMod || '')) { r.settings = b.settings; r.settingsMod = b.settingsMod; }
-  r.del = del; return r;
+  r.del = del; return migrateDB(r);
 }
 
 /* Accès rapides */
@@ -92,8 +92,18 @@ const involved = s => [s.titulaireId, s.suppleantId, ...(s.coanim || [])].filter
 const effective = s => [...new Set([...(s.suppIntervenu && s.suppleantId ? [s.suppleantId] : (s.titulaireId ? [s.titulaireId] : [])), ...(s.coanim || [])])];
 const dureeEff = s => s.statut === 'realisee' ? (s.dureeReelle ?? s.duree ?? 0) : (s.duree ?? 0);
 
+/** Plages de préparation : [{ id, date, debut, h (prévues), reel (réalisées ou null), note }] */
+const prepPlan = s => (s.preps || []).reduce((a, p) => a + (+p.h || 0), 0);
+const prepReal = s => (s.preps || []).reduce((a, p) => a + (p.reel ?? (+p.h || 0)), 0);
+function migrateDB(db) {
+  for (const s of db.sessions || []) {
+    if (!Array.isArray(s.preps)) { s.preps = []; if (+s.prepH > 0 || s.prepDate) s.preps.push({ id: uid(), date: s.prepDate || '', debut: s.prepDebut || '', h: +s.prepH || 0, reel: s.prepReelle ?? null, note: '' }); }
+    delete s.prepH; delete s.prepReelle; delete s.prepDate; delete s.prepDebut;
+  }
+  return db;
+}
 function newSession(o = {}) {
-  return { id: uid(), titre: '', typeId: '', theme: '', objectif: '', date: '', debut: '', fin: '', duree: 7, dureeReelle: null, prepH: null, prepReelle: null, prepDate: '', prepDebut: '', statut: 'planifiee', modalite: 'presentiel', lieuId: '', lienVisio: '', adresse: '', titulaireId: '', suppleantId: '', suppIntervenu: false, coanim: [], coanimRole: '', caisse: '', agences: '', demandeur: '', population: '', profil: '', prevus: null, presents: null, participants: '', dateDemande: '', origine: '', organisateur: '', logistique: '', support: '', docs: [], commentaire: '', motif: '', dateDecision: '', decisionPar: '', nouvelleDate: '', groupeId: '', remplaceId: '', created: new Date().toISOString(), createdBy: S.user ? S.user.name : '', ...o };
+  return { id: uid(), titre: '', typeId: '', theme: '', objectif: '', date: '', debut: '', fin: '', duree: 7, dureeReelle: null, preps: [], statut: 'planifiee', modalite: 'presentiel', lieuId: '', lienVisio: '', adresse: '', titulaireId: '', suppleantId: '', suppIntervenu: false, coanim: [], coanimRole: '', caisse: '', agences: '', demandeur: '', population: '', profil: '', prevus: null, presents: null, participants: '', dateDemande: '', origine: '', organisateur: '', logistique: '', support: '', docs: [], commentaire: '', motif: '', dateDecision: '', decisionPar: '', nouvelleDate: '', groupeId: '', remplaceId: '', created: new Date().toISOString(), createdBy: S.user ? S.user.name : '', ...o };
 }
 
 /* ===== Droits ===== */
@@ -228,7 +238,7 @@ function stats(list) {
     r.st[s.statut]++;
     const active = ACTIVE.includes(s.statut), done = s.statut === 'realisee';
     const h = s.duree || 0, hr = dureeEff(s);
-    const p = +s.prepH || 0, pr = done ? (s.prepReelle ?? p) : 0;
+    const p = prepPlan(s), pr = done ? prepReal(s) : 0;
     if (active) { r.hPlan += h; r.pPlan += p; }
     if (done) r.pReal += pr;
     if (done) { r.hReal += hr; if (s.prevus != null) r.prevus += +s.prevus; if (s.presents != null) { r.presents += +s.presents; r.partN++; } }
@@ -244,10 +254,10 @@ function stats(list) {
 
 /* ===== Export des sessions ===== */
 const MODAL = { presentiel: 'Présentiel', distance: 'À distance' };
-const SESSION_COLS = ['Date', 'Début', 'Fin', 'Durée prévue (h)', 'Durée réelle (h)', 'Année', 'Intitulé', 'Type', 'Thème / produit', 'Statut', 'Modalité', 'Lieu', 'Secteur', 'Préparation prévue (h)', 'Préparation réelle (h)', 'Date de préparation', 'Titulaire', 'Suppléant', 'Suppléant intervenu', 'Coanimateurs', 'Équipe', 'Demandeur', 'Participants prévus', 'Participants présents', 'Commentaire', 'Motif annulation/report', 'Nouvelle date'];
+const SESSION_COLS = ['Date', 'Début', 'Fin', 'Durée prévue (h)', 'Durée réelle (h)', 'Année', 'Intitulé', 'Type', 'Thème / produit', 'Statut', 'Modalité', 'Lieu', 'Secteur', 'Préparation prévue (h)', 'Préparation réelle (h)', 'Dates de préparation', 'Titulaire', 'Suppléant', 'Suppléant intervenu', 'Coanimateurs', 'Équipe', 'Demandeur', 'Participants prévus', 'Participants présents', 'Commentaire', 'Motif annulation/report', 'Nouvelle date'];
 function sessionRow(s) {
   const d = x => x ? parseISO(x) : null;
-  return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', s.prepH || null, s.prepReelle, d(s.prepDate), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
+  return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', prepPlan(s) || null, (s.statut === 'realisee' || (s.preps || []).some(p => p.reel != null)) ? prepReal(s) : null, (s.preps || []).filter(p => p.date).map(p => fmtShort(p.date)).join(', '), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
 }
 const sortedSessions = l => [...l].sort((a, b) => (a.date + (a.debut || '')) < (b.date + (b.debut || '')) ? -1 : 1);
 function icsFor(list) {
@@ -267,13 +277,14 @@ function icsFor(list) {
     L.push(`DESCRIPTION:${e([`Type : ${typeName(s.typeId)}${s.theme ? ' · ' + s.theme : ''}`, `Statut : ${ST[s.statut].label}`, s.titulaireId ? `Animateur titulaire : ${animName(s.titulaireId)}` : '', s.suppleantId ? `Suppléant : ${animName(s.suppleantId)}` : '', (s.coanim || []).length ? `Coanimateur(s) : ${s.coanim.map(animName).join(', ')}` : '', s.lienVisio ? `Lien de connexion : ${s.lienVisio}` : '', s.commentaire].filter(Boolean).join('\n'))}`);
     if (s.debut && s.statut !== 'annulee') L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Rappel formation', 'TRIGGER:-PT30M', 'END:VALARM');
     L.push('END:VEVENT');
-    if (s.prepDate && +s.prepH > 0 && !['annulee', 'reportee'].includes(s.statut)) {
-      const pd = s.prepDate.replace(/-/g, '');
-      L.push('BEGIN:VEVENT', `UID:${s.id}-prep@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(s.prepH)})`)}`, 'TRANSP:OPAQUE');
-      if (s.prepDebut) { const m = t2m(s.prepDebut) + Math.round(s.prepH * 60); L.push(`DTSTART:${pd}T${s.prepDebut.replace(':', '')}00`, `DTEND:${pd}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`); }
-      else L.push(`DTSTART;VALUE=DATE:${pd}`, `DTEND;VALUE=DATE:${addDays(s.prepDate, 1).replace(/-/g, '')}`);
+    if (!['annulee', 'reportee'].includes(s.statut)) (s.preps || []).forEach((p, k) => {
+      if (!p.date || !(+p.h > 0)) return;
+      const pd = p.date.replace(/-/g, '');
+      L.push('BEGIN:VEVENT', `UID:${s.id}-prep${p.id || k}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(p.h)})${p.note ? '\n' + p.note : ''}`)}`, 'TRANSP:OPAQUE');
+      if (p.debut) { const m = t2m(p.debut) + Math.round(p.h * 60); L.push(`DTSTART:${pd}T${p.debut.replace(':', '')}00`, `DTEND:${pd}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`); }
+      else L.push(`DTSTART;VALUE=DATE:${pd}`, `DTEND;VALUE=DATE:${addDays(p.date, 1).replace(/-/g, '')}`);
       L.push('END:VEVENT');
-    }
+    });
   }
   L.push('END:VCALENDAR'); return new Blob([L.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
 }
@@ -355,7 +366,7 @@ function applyNeo(parsed, opts) {
     if (opts.skipDup && DB.sessions.some(s => s.date === r.date && s.typeId === typeId && s.lieuId === (lieu ? lieu.id : '') && s.titulaireId === tit)) { rep.dup++; continue; }
     const statut = r.annulee ? 'annulee' : (opts.pastDone && r.date < t0 ? 'realisee' : 'planifiee');
     const duree = r.duree ?? (typeId && /specifica/i.test(typeName(typeId)) ? 3.5 : 7);
-    const s = newSession({ date: r.date, typeId, prepH: r.annulee ? null : ((T(typeId) || {}).prepH || null), titre: typeName(typeId) + (lieu ? ' – ' + lieu.name : ''), duree: r.annulee && r.duree == null ? 0 : duree, dureeReelle: statut === 'realisee' ? duree : null, statut, lieuId: lieu ? lieu.id : '', titulaireId: tit, suppleantId: sup, commentaire: r.commentaire, motif: r.annulee ? 'Session annulée (mention du fichier Excel d\'origine)' : '', decisionPar: r.annulee ? (S.user ? S.user.name : '') : '', origine: 'Import Excel ' + r.ref });
+    const s = newSession({ date: r.date, typeId, preps: r.annulee || !(T(typeId) || {}).prepH ? [] : [{ id: uid(), date: '', debut: '', h: T(typeId).prepH, reel: null, note: '' }], titre: typeName(typeId) + (lieu ? ' – ' + lieu.name : ''), duree: r.annulee && r.duree == null ? 0 : duree, dureeReelle: statut === 'realisee' ? duree : null, statut, lieuId: lieu ? lieu.id : '', titulaireId: tit, suppleantId: sup, commentaire: r.commentaire, motif: r.annulee ? 'Session annulée (mention du fichier Excel d\'origine)' : '', decisionPar: r.annulee ? (S.user ? S.user.name : '') : '', origine: 'Import Excel ' + r.ref });
     stamp(s); DB.sessions.push(s); logH('Création', s, 'Import du planning Excel'); rep.added++;
   }
   for (const n of parsed.notes) { const a = DB.animateurs.find(x => norm(x.name) === norm(n.name)); if (a && !(a.note || '').includes(n.text)) { a.note = ((a.note ? a.note + '\n' : '') + n.text); stamp(a); } }
