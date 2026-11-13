@@ -160,6 +160,7 @@ details.sect>.fg{padding:.3rem 1rem 1rem}
 .chip.prep{background:repeating-linear-gradient(135deg,color-mix(in srgb,#f6b26b 26%,var(--panel)) 0 6px,color-mix(in srgb,#f6b26b 12%,var(--panel)) 6px 12px);border-left-style:dotted;color:var(--ink)}
 .prep-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.5rem .7rem;align-items:end;padding:.6rem .7rem;margin-bottom:.5rem;border:1.5px dashed color-mix(in srgb,#f6b26b 60%,var(--line));border-radius:16px;background:color-mix(in srgb,#f6b26b 8%,transparent);position:relative}
 .prep-row .grow{grid-column:span 2}.prep-row .x{position:absolute;top:2px;right:4px;width:1.6rem;height:1.6rem;font-size:.8rem}
+.prep-row .all{grid-column:1/-1}.prep-row .checks{gap:.2rem .9rem}
 </style>
 </head>
 <body>
@@ -399,17 +400,22 @@ const animName = id => (A(id) || {}).name || '';
 const typeName = id => (T(id) || {}).name || '—';
 const lieuName = s => s.modalite === 'distance' ? 'À distance' : ((L(s.lieuId) || {}).name || '');
 function sessionLabel(s) { return `${fmtShort(s.date)} · ${s.titre || typeName(s.typeId)}`; }
-const involved = s => [s.titulaireId, s.suppleantId, ...(s.coanim || [])].filter(Boolean);
+const prepAnims = s => [...new Set((s.preps || []).flatMap(p => p.animIds || []))];
+const involved = s => [...new Set([s.titulaireId, s.suppleantId, ...(s.coanim || []), ...prepAnims(s)].filter(Boolean))];
 /** Intervenants qui « comptent » pour la session (titulaire, ou suppléant s'il est intervenu, + coanimateurs) */
 const effective = s => [...new Set([...(s.suppIntervenu && s.suppleantId ? [s.suppleantId] : (s.titulaireId ? [s.titulaireId] : [])), ...(s.coanim || [])])];
 const dureeEff = s => s.statut === 'realisee' ? (s.dureeReelle ?? s.duree ?? 0) : (s.duree ?? 0);
 
 /** Plages de préparation : [{ id, date, debut, h (prévues), reel (réalisées ou null), note }] */
-const prepPlan = s => (s.preps || []).reduce((a, p) => a + (+p.h || 0), 0);
-const prepReal = s => (s.preps || []).reduce((a, p) => a + (p.reel ?? (+p.h || 0)), 0);
+/** Heures cumulées : chaque plage compte pour chacun des animateurs qui la préparent (au moins 1) */
+const nPrep = p => Math.max(1, (p.animIds || []).length);
+const prepPlan = s => (s.preps || []).reduce((a, p) => a + (+p.h || 0) * nPrep(p), 0);
+const prepReal = s => (s.preps || []).reduce((a, p) => a + (p.reel ?? (+p.h || 0)) * nPrep(p), 0);
+const prepSlots = s => (s.preps || []).reduce((a, p) => a + (+p.h || 0), 0);
 function migrateDB(db) {
   for (const s of db.sessions || []) {
     if (!Array.isArray(s.preps)) { s.preps = []; if (+s.prepH > 0 || s.prepDate) s.preps.push({ id: uid(), date: s.prepDate || '', debut: s.prepDebut || '', h: +s.prepH || 0, reel: s.prepReelle ?? null, note: '' }); }
+    s.preps.forEach(p => { if (!Array.isArray(p.animIds)) p.animIds = typeof effective === 'function' ? effective(s) : [s.titulaireId].filter(Boolean); });
     delete s.prepH; delete s.prepReelle; delete s.prepDate; delete s.prepDebut;
   }
   return db;
@@ -556,8 +562,9 @@ function stats(list) {
     if (done) { r.hReal += hr; if (s.prevus != null) r.prevus += +s.prevus; if (s.presents != null) { r.presents += +s.presents; r.partN++; } }
     const targets = [['type', s.typeId, typeName(s.typeId)], ['lieu', s.modalite === 'distance' ? 'dist' : (s.lieuId || '-'), lieuName(s) || 'Non renseigné'], ['secteur', ((L(s.lieuId) || {}).secteur || (s.modalite === 'distance' ? 'À distance' : 'Non renseigné')), ((L(s.lieuId) || {}).secteur || (s.modalite === 'distance' ? 'À distance' : 'Non renseigné'))]];
     for (const [g, k, nm] of targets) { const e = ent(r[g], k, nm); if (active) { e.prev++; e.hPrev += h; e.pPrev += p; } if (done) { e.real++; e.hReal += hr; e.pReal += pr; } if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
+    if (active) for (const pl of s.preps || []) for (const a of (pl.animIds || []).length ? pl.animIds : ['']) { const e = ent(r.anim, a || '-', a ? animName(a) : 'Non attribué'); e.pPrev += +pl.h || 0; if (done) e.pReal += pl.reel ?? (+pl.h || 0); }
     const who = effective(s).length ? effective(s) : [''];
-    for (const a of who) { const e = ent(r.anim, a || '-', a ? animName(a) : 'Non attribué'); if (active) { e.prev++; e.hPrev += h; e.pPrev += p; } if (done) { e.real++; e.hReal += hr; e.pReal += pr; } if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
+    for (const a of who) { const e = ent(r.anim, a || '-', a ? animName(a) : 'Non attribué'); if (active) { e.prev++; e.hPrev += h; } if (done) { e.real++; e.hReal += hr; } if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
     const m = s.date.slice(0, 7); r.mois[m] ||= Object.fromEntries(STATUTS.map(x => [x.id, 0])); r.mois[m][s.statut]++;
   }
   r.taux = r.prevus ? r.presents / r.prevus : null;
@@ -566,10 +573,10 @@ function stats(list) {
 
 /* ===== Export des sessions ===== */
 const MODAL = { presentiel: 'Présentiel', distance: 'À distance' };
-const SESSION_COLS = ['Date', 'Début', 'Fin', 'Durée prévue (h)', 'Durée réelle (h)', 'Année', 'Intitulé', 'Type', 'Thème / produit', 'Statut', 'Modalité', 'Lieu', 'Secteur', 'Préparation prévue (h)', 'Préparation réelle (h)', 'Dates de préparation', 'Titulaire', 'Suppléant', 'Suppléant intervenu', 'Coanimateurs', 'Équipe', 'Demandeur', 'Participants prévus', 'Participants présents', 'Commentaire', 'Motif annulation/report', 'Nouvelle date'];
+const SESSION_COLS = ['Date', 'Début', 'Fin', 'Durée prévue (h)', 'Durée réelle (h)', 'Année', 'Intitulé', 'Type', 'Thème / produit', 'Statut', 'Modalité', 'Lieu', 'Secteur', 'Préparation prévue (h)', 'Préparation réelle (h)', 'Dates de préparation', 'Préparée par', 'Titulaire', 'Suppléant', 'Suppléant intervenu', 'Coanimateurs', 'Équipe', 'Demandeur', 'Participants prévus', 'Participants présents', 'Commentaire', 'Motif annulation/report', 'Nouvelle date'];
 function sessionRow(s) {
   const d = x => x ? parseISO(x) : null;
-  return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', prepPlan(s) || null, (s.statut === 'realisee' || (s.preps || []).some(p => p.reel != null)) ? prepReal(s) : null, (s.preps || []).filter(p => p.date).map(p => fmtShort(p.date)).join(', '), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
+  return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', prepPlan(s) || null, (s.statut === 'realisee' || (s.preps || []).some(p => p.reel != null)) ? prepReal(s) : null, (s.preps || []).filter(p => p.date).map(p => fmtShort(p.date)).join(', '), prepAnims(s).map(animName).join(', '), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
 }
 const sortedSessions = l => [...l].sort((a, b) => (a.date + (a.debut || '')) < (b.date + (b.debut || '')) ? -1 : 1);
 function icsFor(list) {
@@ -592,7 +599,7 @@ function icsFor(list) {
     if (!['annulee', 'reportee'].includes(s.statut)) (s.preps || []).forEach((p, k) => {
       if (!p.date || !(+p.h > 0)) return;
       const pd = p.date.replace(/-/g, '');
-      L.push('BEGIN:VEVENT', `UID:${s.id}-prep${p.id || k}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(p.h)})${p.note ? '\n' + p.note : ''}`)}`, 'TRANSP:OPAQUE');
+      L.push('BEGIN:VEVENT', `UID:${s.id}-prep${p.id || k}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(p.h)})${(p.animIds || []).length ? '\nPréparée par : ' + p.animIds.map(animName).join(', ') : ''}${p.note ? '\n' + p.note : ''}`)}`, 'TRANSP:OPAQUE');
       if (p.debut) { const m = t2m(p.debut) + Math.round(p.h * 60); L.push(`DTSTART:${pd}T${p.debut.replace(':', '')}00`, `DTEND:${pd}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`); }
       else L.push(`DTSTART;VALUE=DATE:${pd}`, `DTEND;VALUE=DATE:${addDays(p.date, 1).replace(/-/g, '')}`);
       L.push('END:VEVENT');
@@ -764,7 +771,7 @@ function viewDashboard() {
     ${tbl('Synthèse par animateur', rows(r.anim), 'Animateur')}
     ${tbl('Synthèse par type de formation', rows(r.type), 'Type')}
     ${tbl('Synthèse par secteur géographique', rows(r.secteur), 'Secteur')}
-    <p class="muted note">Règles : une session annulée ou reportée n'entre ni dans les heures planifiées ni dans les heures réalisées. Les heures réalisées utilisent la durée réelle saisie (à défaut, la durée prévue). Si le suppléant est intervenu, la session est comptée pour lui plutôt que pour le titulaire ; les coanimateurs sont comptés pour chaque session. La préparation suit la même règle (prévue : toutes les sessions actives ; réalisée : sessions réalisées, avec la préparation réelle saisie ou, à défaut, la prévue).</p>`;
+    <p class="muted note">Règles : une session annulée ou reportée n'entre ni dans les heures planifiées ni dans les heures réalisées. Les heures réalisées utilisent la durée réelle saisie (à défaut, la durée prévue). Si le suppléant est intervenu, la session est comptée pour lui plutôt que pour le titulaire ; les coanimateurs sont comptés pour chaque session. La préparation suit la même règle (prévue : toutes les sessions actives ; réalisée : sessions réalisées, avec les heures réelles saisies ou, à défaut, les prévues). Chaque plage est comptée pour chacun des animateurs qui la préparent : les heures de préparation et le « temps réalisé » additionnent donc des heures-personnes.</p>`;
 }
 
 /* ===== Planning (calendrier) ===== */
@@ -772,8 +779,8 @@ function chip(s, long) {
   const col = S.cal.color === 'type' ? (T(s.typeId) || {}).color : ST[s.statut].color;
   return `<button class="chip${s.statut === 'annulee' ? ' cancelled' : ''}${s.statut === 'reportee' ? ' postponed' : ''}" style="--c:${col};--c2:${S.cal.color === 'type' ? ST[s.statut].color : ((T(s.typeId) || {}).color || '#888')}" data-act="open" data-id="${s.id}" title="${esc(ST[s.statut].label + ' · ' + (s.titre || typeName(s.typeId)))}">${s.debut ? `<b>${s.debut}</b> ` : ''}${esc(typeName(s.typeId))}${long ? ' · ' + esc(lieuName(s)) : ''} · ${esc(first(animName(s.titulaireId)) || '⚠ sans animateur')}</button>`;
 }
-const prepChip = ({ s, p }) => `<button class="chip prep" style="--c:#f6b26b;--c2:#f6b26b" data-act="open" data-id="${s.id}" title="Préparation de « ${esc(s.titre || typeName(s.typeId))} » du ${fmtShort(s.date)}${p.note ? ' – ' + esc(p.note) : ''}">✏️ ${p.debut ? p.debut + ' ' : ''}Prépa ${fmtH(p.h)} · ${esc(typeName(s.typeId))}</button>`;
-const prepRowHTML = (p, dis) => `<div class="prep-row" data-id="${p.id || ''}"><label class="f"><span>Date</span><input type="date" data-k="date" value="${p.date || ''}"${dis.all}></label><label class="f"><span>Début</span><input type="time" data-k="debut" value="${p.debut || ''}"${dis.all}></label><label class="f"><span>Heures prévues</span><input type="number" data-k="h" min="0" max="80" step="0.25" value="${p.h ?? ''}"${dis.all}></label><label class="f"><span>Heures réalisées</span><input type="number" data-k="reel" min="0" max="80" step="0.25" value="${p.reel ?? ''}"${dis.own}></label><label class="f grow"><span>Objet (facultatif)</span><input data-k="note" value="${esc(p.note || '')}" placeholder="ex. support, exercices…"${dis.all}></label>${dis.all ? '' : '<button type="button" class="x" data-act="rmPrep" title="Supprimer cette plage">✕</button>'}</div>`;
+const prepChip = ({ s, p }) => `<button class="chip prep" style="--c:#f6b26b;--c2:#f6b26b" data-act="open" data-id="${s.id}" title="Préparation de « ${esc(s.titre || typeName(s.typeId))} » du ${fmtShort(s.date)}${p.note ? ' – ' + esc(p.note) : ''}">✏️ ${p.debut ? p.debut + ' ' : ''}Prépa ${fmtH(p.h)} · ${esc(typeName(s.typeId))}${(p.animIds || []).length ? ' · ' + p.animIds.map(i => esc(first(animName(i)))).join(', ') : ''}</button>`;
+const prepRowHTML = (p, dis) => `<div class="prep-row" data-id="${p.id || ''}"><label class="f"><span>Date</span><input type="date" data-k="date" value="${p.date || ''}"${dis.all}></label><label class="f"><span>Début</span><input type="time" data-k="debut" value="${p.debut || ''}"${dis.all}></label><label class="f"><span>Heures prévues</span><input type="number" data-k="h" min="0" max="80" step="0.25" value="${p.h ?? ''}"${dis.all}></label><label class="f"><span>Heures réalisées</span><input type="number" data-k="reel" min="0" max="80" step="0.25" value="${p.reel ?? ''}"${dis.own}></label><div class="f all"><span>Qui prépare <small class="muted">(chacun y consacre ces heures)</small></span><div class="checks">${DB.animateurs.filter(a => a.actif !== false || (p.animIds || []).includes(a.id)).sort((x, y) => x.name.localeCompare(y.name, 'fr')).map(a => `<label class="chk"><input type="checkbox" data-k="anim" value="${a.id}"${(p.animIds || []).includes(a.id) ? ' checked' : ''}${dis.all}> ${esc(a.name)}</label>`).join('') || '<small class="muted">Aucun animateur référencé.</small>'}</div></div><label class="f grow"><span>Objet (facultatif)</span><input data-k="note" value="${esc(p.note || '')}" placeholder="ex. support, exercices…"${dis.all}></label>${dis.all ? '' : '<button type="button" class="x" data-act="rmPrep" title="Supprimer cette plage">✕</button>'}</div>`;
 function calNav() {
   const c = S.cal, d = parseISO(c.date);
   const title = { day: cap(fmtDate(c.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })), week: `Semaine du ${fmtDate(startOfWeek(c.date), { day: 'numeric', month: 'long' })} au ${fmtDate(addDays(startOfWeek(c.date), 6), { day: 'numeric', month: 'long', year: 'numeric' })}`, month: cap(fmtDate(c.date, { month: 'long', year: 'numeric' })), res: cap(fmtDate(c.date, { month: 'long', year: 'numeric' })), year: String(d.getFullYear()) }[c.mode];
@@ -798,7 +805,7 @@ function viewPlanning() {
     body = `<div class="wgrid">${Array.from({ length: 7 }, (_, i) => addDays(s0, i)).map(d => `<div class="wday${d === t ? ' today' : ''}"><h4>${cap(fmtDate(d, { weekday: 'long', day: 'numeric', month: 'short' }))}</h4>${(prepBy[d] || []).map(prepChip).join('')}${(by[d] || []).map(s => chip(s, true)).join('') || (prepBy[d] ? '' : '<p class="muted">—</p>')}${can.edit() ? `<button class="btn ghost sm" data-act="new" data-date="${d}">+ Session</button>` : ''}</div>`).join('')}</div>`;
   } else if (c.mode === 'day') {
     const ss = by[c.date] || [];
-    body = `<div class="dayview">${(prepBy[c.date] || []).map(({ s, p }) => `<div class="dcard" style="--c:#f6b26b" data-act="open" data-id="${s.id}"><div><b>${p.debut ? p.debut : 'Préparation'}</b> · ${fmtH(p.h)}</div><h3>✏️ Préparation : ${esc(s.titre || typeName(s.typeId))}</h3><p>Formation le ${fmtDate(s.date)}</p></div>`).join('')}${ss.map(s => `<div class="dcard" style="--c:${(T(s.typeId) || {}).color}" data-act="open" data-id="${s.id}"><div><b>${s.debut ? s.debut + (s.fin ? '–' + s.fin : '') : 'Horaires non renseignés'}</b> · ${fmtH(s.duree)}</div><h3>${esc(s.titre || typeName(s.typeId))}</h3><p>${typeDot(s.typeId)}${esc(typeName(s.typeId))}${s.theme ? ' · ' + esc(s.theme) : ''} · ${esc(lieuName(s) || 'Lieu à définir')}</p><p>Titulaire : <b>${esc(animName(s.titulaireId) || 'à désigner')}</b>${s.suppleantId ? ' · Suppléant : ' + esc(animName(s.suppleantId)) : ''}</p>${statutBadge(s.statut)}</div>`).join('') || '<p class="muted pad">Aucune session ce jour.</p>'}${can.edit() ? `<button class="btn" data-act="new" data-date="${c.date}">+ Nouvelle session ce jour</button>` : ''}</div>`;
+    body = `<div class="dayview">${(prepBy[c.date] || []).map(({ s, p }) => `<div class="dcard" style="--c:#f6b26b" data-act="open" data-id="${s.id}"><div><b>${p.debut ? p.debut : 'Préparation'}</b> · ${fmtH(p.h)}${(p.animIds || []).length ? ' · par ' + esc(p.animIds.map(animName).join(', ')) : ''}</div><h3>✏️ Préparation : ${esc(s.titre || typeName(s.typeId))}</h3><p>Formation le ${fmtDate(s.date)}</p></div>`).join('')}${ss.map(s => `<div class="dcard" style="--c:${(T(s.typeId) || {}).color}" data-act="open" data-id="${s.id}"><div><b>${s.debut ? s.debut + (s.fin ? '–' + s.fin : '') : 'Horaires non renseignés'}</b> · ${fmtH(s.duree)}</div><h3>${esc(s.titre || typeName(s.typeId))}</h3><p>${typeDot(s.typeId)}${esc(typeName(s.typeId))}${s.theme ? ' · ' + esc(s.theme) : ''} · ${esc(lieuName(s) || 'Lieu à définir')}</p><p>Titulaire : <b>${esc(animName(s.titulaireId) || 'à désigner')}</b>${s.suppleantId ? ' · Suppléant : ' + esc(animName(s.suppleantId)) : ''}</p>${statutBadge(s.statut)}</div>`).join('') || '<p class="muted pad">Aucune session ce jour.</p>'}${can.edit() ? `<button class="btn" data-act="new" data-date="${c.date}">+ Nouvelle session ce jour</button>` : ''}</div>`;
   } else if (c.mode === 'year') {
     const y = parseISO(c.date).getFullYear();
     body = `<div class="ygrid">${MONTHS.map((mn, m) => { const first = new Date(y, m, 1), s0 = startOfWeek(toISO(first)); const days = Array.from({ length: 42 }, (_, i) => addDays(s0, i)); const n = sum(Object.keys(by).filter(d => d.startsWith(`${y}-${pad(m + 1)}`)).map(d => by[d].length)); return `<div class="ymonth"><h4><a href="#" data-act="calgo" data-date="${y}-${pad(m + 1)}-01" data-v="month">${cap(mn)}</a> <small>${n ? n + ' session' + (n > 1 ? 's' : '') : ''}</small></h4><div class="ymini">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => `<i class="yh">${d}</i>`).join('')}${days.map(d => { const ss = by[d] || [], inM = d.slice(5, 7) === pad(m + 1); const col = ss.length ? (ss.some(s => s.statut === 'realisee') ? ST.realisee.color : ss.some(s => ['planifiee', 'confirmee', 'a_planifier'].includes(s.statut)) ? ST.planifiee.color : ST.annulee.color) : ''; return inM ? `<a href="#" class="yd${ss.length ? ' has' : ''}${d === t ? ' today' : ''}" ${col ? `style="--c:${col}"` : ''} data-act="calgo" data-date="${d}" data-v="day" title="${ss.map(s => esc(sessionLabel(s))).join('\n')}">${+d.slice(8)}</a>` : '<i></i>'; }).join('')}</div></div>`; }).join('')}</div>`;
@@ -824,7 +831,7 @@ function viewSessions() {
   const alerts = computeAlerts(), warn = new Set(alerts.filter(a => a.sev === 'warn').map(a => a.sid));
   const th = (key, l, cls = '') => `<th class="${cls}"><button class="sortb" data-act="sort" data-k="${key}">${l}${k === key ? (d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
   return `<div class="page-h"><div><h1>Sessions</h1><p class="muted">${list.length} session${list.length > 1 ? 's' : ''} · ${fmtH(sum(list.filter(s => ACTIVE.includes(s.statut)), dureeEff))} (hors annulées/reportées)</p></div><div class="actions noprint">${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}<button class="btn" data-act="exportIcs" title="Fichier .ics des sessions affichées : un double-clic les ajoute à Outlook">📅 Ajouter à Outlook</button>${can.exp() ? '<button class="btn" data-act="exportSessions">Exporter (Excel)</button>' : ''}</div></div>${filterBar(true, true)}
-  <div class="scroll"><table class="tbl hover"><thead><tr>${th('date', 'Date')}<th>Horaires</th>${th('type', 'Formation')}${th('lieu', 'Lieu')}${th('tit', 'Titulaire')}<th>Suppléant</th>${th('duree', 'Durée', 'n')}<th class="n">Particip.</th>${th('statut', 'Statut')}<th></th></tr></thead><tbody>${list.map(s => `<tr data-act="open" data-id="${s.id}" tabindex="0"><td>${fmtDate(s.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</td><td>${s.debut ? s.debut + (s.fin ? '–' + s.fin : '') : '<span class="muted">—</span>'}</td><td>${typeDot(s.typeId)}<b>${esc(s.titre || typeName(s.typeId))}</b>${s.groupeId ? ' <span class="tag" title="Session d\'une action à sessions multiples">série</span>' : ''}<br><small class="muted">${esc(typeName(s.typeId))}${s.theme ? ' · ' + esc(s.theme) : ''}</small></td><td>${esc(lieuName(s)) || '<span class="muted">—</span>'}</td><td>${esc(animName(s.titulaireId)) || '<span class="warnt">à désigner</span>'}</td><td>${esc(animName(s.suppleantId)) || '<span class="muted">—</span>'}</td><td class="n">${fmtH(dureeEff(s))}${prepPlan(s) > 0 ? `<br><small class="muted">+ ${fmtH(prepPlan(s))} prépa${(s.preps || []).length > 1 ? ' (' + s.preps.length + ' plages)' : ''}</small>` : ''}</td><td class="n">${s.presents != null ? s.presents : '–'} / ${s.prevus != null ? s.prevus : '–'}</td><td>${statutBadge(s.statut)}</td><td>${warn.has(s.id) ? '<span class="warnt" title="Alerte : voir l\'onglet Alertes">⚠</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="10" class="muted pad">Aucune session ne correspond aux filtres.</td></tr>'}</tbody></table></div>`;
+  <div class="scroll"><table class="tbl hover"><thead><tr>${th('date', 'Date')}<th>Horaires</th>${th('type', 'Formation')}${th('lieu', 'Lieu')}${th('tit', 'Titulaire')}<th>Suppléant</th>${th('duree', 'Durée', 'n')}<th class="n">Particip.</th>${th('statut', 'Statut')}<th></th></tr></thead><tbody>${list.map(s => `<tr data-act="open" data-id="${s.id}" tabindex="0"><td>${fmtDate(s.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</td><td>${s.debut ? s.debut + (s.fin ? '–' + s.fin : '') : '<span class="muted">—</span>'}</td><td>${typeDot(s.typeId)}<b>${esc(s.titre || typeName(s.typeId))}</b>${s.groupeId ? ' <span class="tag" title="Session d\'une action à sessions multiples">série</span>' : ''}<br><small class="muted">${esc(typeName(s.typeId))}${s.theme ? ' · ' + esc(s.theme) : ''}</small></td><td>${esc(lieuName(s)) || '<span class="muted">—</span>'}</td><td>${esc(animName(s.titulaireId)) || '<span class="warnt">à désigner</span>'}</td><td>${esc(animName(s.suppleantId)) || '<span class="muted">—</span>'}</td><td class="n">${fmtH(dureeEff(s))}${prepSlots(s) > 0 ? `<br><small class="muted">+ ${fmtH(prepSlots(s))} prépa${(s.preps || []).length > 1 ? ' (' + s.preps.length + ' plages)' : ''}</small>` : ''}</td><td class="n">${s.presents != null ? s.presents : '–'} / ${s.prevus != null ? s.prevus : '–'}</td><td>${statutBadge(s.statut)}</td><td>${warn.has(s.id) ? '<span class="warnt" title="Alerte : voir l\'onglet Alertes">⚠</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="10" class="muted pad">Aucune session ne correspond aux filtres.</td></tr>'}</tbody></table></div>`;
 }
 
 /* ===== Alertes & historique ===== */
@@ -988,11 +995,12 @@ document.addEventListener('change', e => {
   else if (t.name === 'typeId' && t.closest('#sf')) {
     const tp = T(findByName('type', t.value)), rows = $$('.prep-row');
     if (tp && tp.prepH > 0 && S.pf.all === '') {
-      if (!rows.length) { $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: tp.prepH }, S.pf)); $('.prep-row').dataset.auto = '1'; }
+      if (!rows.length) { $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: tp.prepH, animIds: defaultPrepAnims() }, S.pf)); $('.prep-row').dataset.auto = '1'; $('.prep-row').dataset.anauto = '1'; }
       else if (rows.length === 1 && rows[0].dataset.auto === '1') $('[data-k=h]', rows[0]).value = tp.prepH;
     }
     formSync();
   }
+  else if ((t.name === 'titulaireId' || t.name === 'coanim') && t.closest('#sf')) { $$('.prep-row[data-anauto="1"]').forEach(r => setPrepAnims(r, defaultPrepAnims())); formSync(); }
   else if (t.name === 'statut' && t.closest('#sf')) formSync();
   else if (t.name === 'modalite' && t.closest('#sf')) formSync();
   else if (t.id === 'optPast' || t.id === 'optDup') renderPreview();
@@ -1004,6 +1012,7 @@ document.addEventListener('input', e => {
   else if (t.closest('.prep-row')) { t.closest('.prep-row').dataset.auto = ''; formSync(); }
   else if (t.closest('#sf') && (t.name === 'date' || t.name === 'duree')) formSync();
 });
+document.addEventListener('click', e => { const c = e.target.closest('.prep-row [data-k=anim]'); if (c) c.closest('.prep-row').dataset.anauto = ''; });
 document.addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target;
@@ -1047,7 +1056,7 @@ const ACT = {
   exportHist: () => dlXlsx([{ name: 'Historique', rows: [['Date', 'Utilisateur', 'Action', 'Session', 'Détail'], ...DB.history.slice().reverse().map(h => [new Date(h.ts).toLocaleString('fr-FR'), h.user, h.action, h.label, h.detail])] }], 'historique'),
   /* fiche */
   calcDuree: () => { const f = $('#sf'), a = t2m(f.debut.value), b = t2m(f.fin.value); if (a === null || b === null || b <= a) return toast('Renseignez des horaires valides.', 'err'); f.duree.value = Math.round((b - a) / 15) / 4; formSync(); },
-  addPrep: () => { const f = $('#sf'), tp = T(findByName('type', f.typeId.value)), first = !$$('.prep-row').length; $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: first && tp && tp.prepH > 0 ? tp.prepH : '' }, S.pf)); formSync(); },
+  addPrep: () => { const f = $('#sf'), tp = T(findByName('type', f.typeId.value)), first = !$$('.prep-row').length; $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: first && tp && tp.prepH > 0 ? tp.prepH : '', animIds: defaultPrepAnims() }, S.pf)); $('#preps').lastElementChild.dataset.anauto = '1'; formSync(); },
   rmPrep: (el) => { el.closest('.prep-row').remove(); formSync(); },
   preset: (el) => { $('#sf').duree.value = el.dataset.h; formSync(); },
   addDate: () => { const v = $('#xd').value; if (!v) return; (S.xd ||= []); if (!S.xd.includes(v)) S.xd.push(v); S.xd.sort(); $('#xd').value = ''; xdRender(); },
@@ -1105,7 +1114,7 @@ function exportBy(g) {
   const list = sortedSessions(filtered()), groups = new Map();
   const add = (k, s, extra) => { if (!groups.has(k)) groups.set(k, []); groups.get(k).push([...sessionRow(s), extra]); };
   for (const s of list) {
-    if (g === 'anim') { const roles = [[s.titulaireId, 'Titulaire'], [s.suppleantId, 'Suppléant'], ...(s.coanim || []).map(c => [c, 'Coanimateur'])]; if (!s.titulaireId) add('Sans animateur', s, ''); roles.filter(r => r[0]).forEach(([id, rl]) => add(animName(id), s, rl)); }
+    if (g === 'anim') { const rmap = new Map(); [[s.titulaireId, 'Titulaire'], [s.suppleantId, 'Suppléant'], ...(s.coanim || []).map(c => [c, 'Coanimateur']), ...prepAnims(s).map(c => [c, 'Préparation'])].filter(r => r[0]).forEach(([id, rl]) => rmap.set(id, [...(rmap.get(id) || []), rl])); if (!s.titulaireId) add('Sans animateur', s, ''); rmap.forEach((rl, id) => add(animName(id), s, rl.join(' + '))); }
     else if (g === 'lieu') add(lieuName(s) || 'Lieu non défini', s, ''); else add(typeName(s.typeId), s, '');
   }
   if (!groups.size) return toast('Aucune session à exporter.', 'err');
@@ -1151,6 +1160,13 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Tab') cbHide();
 });
 
+/** Animateurs proposés par défaut pour une plage : titulaire + coanimateurs saisis dans la fiche */
+function defaultPrepAnims() {
+  const f = $('#sf'); if (!f) return [];
+  return [...new Set([findByName('anim', f.titulaireId.value.trim()), ...$$('input[name=coanim]:checked', f).map(x => x.value)].filter(Boolean))];
+}
+function setPrepAnims(row, ids) { $$('[data-k=anim]', row).forEach(c => { c.checked = ids.includes(c.value); }); }
+
 /* ===== Fiche session ===== */
 function openSession(id, date, tpl) {
   const isNew = !id; let s = isNew ? newSession({ date: date || '', ...(tpl || {}), typeId: (tpl && tpl.typeId) || '' }) : DB.sessions.find(x => x.id === id);
@@ -1167,14 +1183,14 @@ function formSync() {
   $('.lieu-p', f).classList.toggle('hide', dist); $('.lieu-d', f).classList.toggle('hide', !dist);
   $('#annee').value = f.date.value ? f.date.value.slice(0, 4) : '';
   const tp = T(findByName('type', f.typeId.value)); $('#prepHint').textContent = tp && tp.prepH > 0 ? `Défaut « ${tp.name} » : ${fmtH(tp.prepH)} au total.` : '';
-  const tot = $$('.prep-row [data-k=h]', f).reduce((x, i) => x + (+i.value || 0), 0); $('#prepTot').textContent = tot ? `Total prévu : ${fmtH(tot)}` : '';
+  const tot = $$('.prep-row [data-k=h]', f).reduce((x, i) => x + (+i.value || 0), 0), cum = $$('.prep-row', f).reduce((x, r) => x + (+$('[data-k=h]', r).value || 0) * Math.max(1, $$('[data-k=anim]:checked', r).length), 0); $('#prepTot').textContent = tot ? `Total des plages : ${fmtH(tot)}${cum !== tot ? ' · ' + fmtH(cum) + ' cumulées (tous préparateurs)' : ''}` : '';
   const h = parseFloat(f.duree.value); $('#dureeFmt').textContent = isNaN(h) ? '' : '= ' + fmtH(h);
 }
 function xdRender() { $('#xdl').innerHTML = (S.xd || []).map(d => `<span class="tag lg">${fmtShort(d)} <button type="button" class="lnk" data-act="rmDate" data-v="${d}">retirer</button></span>`).join(''); }
 
 const FL = { titre: 'Intitulé', typeId: 'Type', theme: 'Thème', objectif: 'Objectif', date: 'Date', debut: 'Début', fin: 'Fin', duree: 'Durée prévue', preps: 'Préparation', dureeReelle: 'Durée réelle', statut: 'Statut', modalite: 'Modalité', lieuId: 'Lieu', lienVisio: 'Lien visio', adresse: 'Adresse', titulaireId: 'Titulaire', suppleantId: 'Suppléant', suppIntervenu: 'Suppléant intervenu', coanim: 'Coanimateurs', coanimRole: 'Rôle coanimation', caisse: 'Caisse/unité', agences: 'Agences', demandeur: 'Demandeur', population: 'Population', profil: 'Profil', prevus: 'Participants prévus', presents: 'Participants présents', participants: 'Participants', dateDemande: 'Date de la demande', origine: 'Origine de la demande', organisateur: 'Organisateur', logistique: 'Logistique', support: 'Support', docs: 'Documents', commentaire: 'Commentaire', motif: 'Motif', dateDecision: 'Date de décision', nouvelleDate: 'Nouvelle date' };
 function showVal(k, v) {
-  if (k === 'preps') return (v || []).map(p => `${p.date ? fmtShort(p.date) : 'sans date'} ${fmtH(p.h)}${p.reel != null ? ' (réel ' + fmtH(p.reel) + ')' : ''}`).join(' ; ') || '∅';
+  if (k === 'preps') return (v || []).map(p => `${p.date ? fmtShort(p.date) : 'sans date'} ${fmtH(p.h)}${p.reel != null ? ' (réel ' + fmtH(p.reel) + ')' : ''}${(p.animIds || []).length ? ' [' + p.animIds.map(animName).join(', ') + ']' : ''}`).join(' ; ') || '∅';
   if (Array.isArray(v)) return v.map(x => typeof x === 'object' ? x.nom : animName(x)).join(', ') || '∅';
   if (v === '' || v === null || v === undefined) return '∅';
   if (k === 'typeId') return typeName(v); if (k === 'lieuId') return (L(v) || {}).name || '∅'; if (k === 'titulaireId' || k === 'suppleantId') return animName(v);
@@ -1207,7 +1223,7 @@ async function saveSession(form) {
   if (s.suppleantId === '' ) s.suppIntervenu = false;
   s.coanim = (s.coanim || []).filter(x => x !== s.titulaireId);
   const pc = $('#preps', form);
-  if (pc) s.preps = $$('.prep-row', pc).map(r => { const g = k => $('[data-k=' + k + ']', r).value; return { id: r.dataset.id || uid(), date: g('date'), debut: g('debut'), h: +g('h') || 0, reel: g('reel') === '' ? null : +g('reel'), note: g('note').trim() }; }).filter(p => p.date || p.h > 0 || p.reel != null);
+  if (pc) s.preps = $$('.prep-row', pc).map(r => { const g = k => $('[data-k=' + k + ']', r).value; return { id: r.dataset.id || uid(), date: g('date'), debut: g('debut'), h: +g('h') || 0, reel: g('reel') === '' ? null : +g('reel'), note: g('note').trim(), animIds: $$('[data-k=anim]:checked', r).map(i => i.value) }; }).filter(p => p.date || p.h > 0 || p.reel != null);
   if (!s.titre) s.titre = typeName(s.typeId) + (s.modalite === 'distance' ? ' – à distance' : (s.lieuId ? ' – ' + (L(s.lieuId) || {}).name : ''));
   if (['annulee', 'reportee'].includes(s.statut) && s.statut !== old.statut) { s.dateDecision ||= today(); s.decisionPar = S.user.name; }
   if (s.statut === 'realisee' && s.dureeReelle == null) s.dureeReelle = s.duree;
@@ -1265,7 +1281,7 @@ function mergeDialog(k, id) {
   const m = modal(`<form id="edForm"><div class="mhead"><h2>Fusionner « ${esc(src.name)} »</h2><button type="button" class="x" data-act="close">✕</button></div><div class="mbody"><p>Toutes les sessions de « ${esc(src.name)} » seront rattachées à l'élément choisi, puis « ${esc(src.name)} » sera supprimé (son nom devient un alias pour un lieu).</p><label class="f"><span>Fusionner dans</span><select name="to">${opts(list)}</select></label></div><div class="mfoot"><span class="sp"></span><button type="button" class="btn" data-act="close">Annuler</button><button class="btn primary">Fusionner</button></div></form>`, 'small');
   $('#edForm').onsubmit2 = f => {
     const to = f.to.value;
-    DB.sessions.forEach(s => { let ch = false; if (k === 'lieu' && s.lieuId === id) { s.lieuId = to; ch = true; } if (k === 'anim') { ['titulaireId', 'suppleantId'].forEach(p => { if (s[p] === id) { s[p] = to; ch = true; } }); if ((s.coanim || []).includes(id)) { s.coanim = [...new Set(s.coanim.map(x => x === id ? to : x))]; ch = true; } } if (ch) stamp(s); });
+    DB.sessions.forEach(s => { let ch = false; if (k === 'lieu' && s.lieuId === id) { s.lieuId = to; ch = true; } if (k === 'anim') { ['titulaireId', 'suppleantId'].forEach(p => { if (s[p] === id) { s[p] = to; ch = true; } }); if ((s.coanim || []).includes(id)) { s.coanim = [...new Set(s.coanim.map(x => x === id ? to : x))]; ch = true; } (s.preps || []).forEach(p => { if ((p.animIds || []).includes(id)) { p.animIds = [...new Set(p.animIds.map(x => x === id ? to : x))]; ch = true; } }); } if (ch) stamp(s); });
     if (k === 'lieu') { const t = L(to); t.aliases = [...new Set([...(t.aliases || []), src.name, ...(src.aliases || [])])]; stamp(t); DB.lieux = DB.lieux.filter(x => x.id !== id); } else DB.animateurs = DB.animateurs.filter(x => x.id !== id);
     DB.del[id] = new Date().toISOString(); persist(); closeModal(); render(); toast('Fusion effectuée.');
   };

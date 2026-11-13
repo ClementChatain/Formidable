@@ -44,11 +44,12 @@ document.addEventListener('change', e => {
   else if (t.name === 'typeId' && t.closest('#sf')) {
     const tp = T(findByName('type', t.value)), rows = $$('.prep-row');
     if (tp && tp.prepH > 0 && S.pf.all === '') {
-      if (!rows.length) { $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: tp.prepH }, S.pf)); $('.prep-row').dataset.auto = '1'; }
+      if (!rows.length) { $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: tp.prepH, animIds: defaultPrepAnims() }, S.pf)); $('.prep-row').dataset.auto = '1'; $('.prep-row').dataset.anauto = '1'; }
       else if (rows.length === 1 && rows[0].dataset.auto === '1') $('[data-k=h]', rows[0]).value = tp.prepH;
     }
     formSync();
   }
+  else if ((t.name === 'titulaireId' || t.name === 'coanim') && t.closest('#sf')) { $$('.prep-row[data-anauto="1"]').forEach(r => setPrepAnims(r, defaultPrepAnims())); formSync(); }
   else if (t.name === 'statut' && t.closest('#sf')) formSync();
   else if (t.name === 'modalite' && t.closest('#sf')) formSync();
   else if (t.id === 'optPast' || t.id === 'optDup') renderPreview();
@@ -60,6 +61,7 @@ document.addEventListener('input', e => {
   else if (t.closest('.prep-row')) { t.closest('.prep-row').dataset.auto = ''; formSync(); }
   else if (t.closest('#sf') && (t.name === 'date' || t.name === 'duree')) formSync();
 });
+document.addEventListener('click', e => { const c = e.target.closest('.prep-row [data-k=anim]'); if (c) c.closest('.prep-row').dataset.anauto = ''; });
 document.addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target;
@@ -103,7 +105,7 @@ const ACT = {
   exportHist: () => dlXlsx([{ name: 'Historique', rows: [['Date', 'Utilisateur', 'Action', 'Session', 'Détail'], ...DB.history.slice().reverse().map(h => [new Date(h.ts).toLocaleString('fr-FR'), h.user, h.action, h.label, h.detail])] }], 'historique'),
   /* fiche */
   calcDuree: () => { const f = $('#sf'), a = t2m(f.debut.value), b = t2m(f.fin.value); if (a === null || b === null || b <= a) return toast('Renseignez des horaires valides.', 'err'); f.duree.value = Math.round((b - a) / 15) / 4; formSync(); },
-  addPrep: () => { const f = $('#sf'), tp = T(findByName('type', f.typeId.value)), first = !$$('.prep-row').length; $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: first && tp && tp.prepH > 0 ? tp.prepH : '' }, S.pf)); formSync(); },
+  addPrep: () => { const f = $('#sf'), tp = T(findByName('type', f.typeId.value)), first = !$$('.prep-row').length; $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: first && tp && tp.prepH > 0 ? tp.prepH : '', animIds: defaultPrepAnims() }, S.pf)); $('#preps').lastElementChild.dataset.anauto = '1'; formSync(); },
   rmPrep: (el) => { el.closest('.prep-row').remove(); formSync(); },
   preset: (el) => { $('#sf').duree.value = el.dataset.h; formSync(); },
   addDate: () => { const v = $('#xd').value; if (!v) return; (S.xd ||= []); if (!S.xd.includes(v)) S.xd.push(v); S.xd.sort(); $('#xd').value = ''; xdRender(); },
@@ -161,7 +163,7 @@ function exportBy(g) {
   const list = sortedSessions(filtered()), groups = new Map();
   const add = (k, s, extra) => { if (!groups.has(k)) groups.set(k, []); groups.get(k).push([...sessionRow(s), extra]); };
   for (const s of list) {
-    if (g === 'anim') { const roles = [[s.titulaireId, 'Titulaire'], [s.suppleantId, 'Suppléant'], ...(s.coanim || []).map(c => [c, 'Coanimateur'])]; if (!s.titulaireId) add('Sans animateur', s, ''); roles.filter(r => r[0]).forEach(([id, rl]) => add(animName(id), s, rl)); }
+    if (g === 'anim') { const rmap = new Map(); [[s.titulaireId, 'Titulaire'], [s.suppleantId, 'Suppléant'], ...(s.coanim || []).map(c => [c, 'Coanimateur']), ...prepAnims(s).map(c => [c, 'Préparation'])].filter(r => r[0]).forEach(([id, rl]) => rmap.set(id, [...(rmap.get(id) || []), rl])); if (!s.titulaireId) add('Sans animateur', s, ''); rmap.forEach((rl, id) => add(animName(id), s, rl.join(' + '))); }
     else if (g === 'lieu') add(lieuName(s) || 'Lieu non défini', s, ''); else add(typeName(s.typeId), s, '');
   }
   if (!groups.size) return toast('Aucune session à exporter.', 'err');
@@ -207,6 +209,13 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Tab') cbHide();
 });
 
+/** Animateurs proposés par défaut pour une plage : titulaire + coanimateurs saisis dans la fiche */
+function defaultPrepAnims() {
+  const f = $('#sf'); if (!f) return [];
+  return [...new Set([findByName('anim', f.titulaireId.value.trim()), ...$$('input[name=coanim]:checked', f).map(x => x.value)].filter(Boolean))];
+}
+function setPrepAnims(row, ids) { $$('[data-k=anim]', row).forEach(c => { c.checked = ids.includes(c.value); }); }
+
 /* ===== Fiche session ===== */
 function openSession(id, date, tpl) {
   const isNew = !id; let s = isNew ? newSession({ date: date || '', ...(tpl || {}), typeId: (tpl && tpl.typeId) || '' }) : DB.sessions.find(x => x.id === id);
@@ -223,14 +232,14 @@ function formSync() {
   $('.lieu-p', f).classList.toggle('hide', dist); $('.lieu-d', f).classList.toggle('hide', !dist);
   $('#annee').value = f.date.value ? f.date.value.slice(0, 4) : '';
   const tp = T(findByName('type', f.typeId.value)); $('#prepHint').textContent = tp && tp.prepH > 0 ? `Défaut « ${tp.name} » : ${fmtH(tp.prepH)} au total.` : '';
-  const tot = $$('.prep-row [data-k=h]', f).reduce((x, i) => x + (+i.value || 0), 0); $('#prepTot').textContent = tot ? `Total prévu : ${fmtH(tot)}` : '';
+  const tot = $$('.prep-row [data-k=h]', f).reduce((x, i) => x + (+i.value || 0), 0), cum = $$('.prep-row', f).reduce((x, r) => x + (+$('[data-k=h]', r).value || 0) * Math.max(1, $$('[data-k=anim]:checked', r).length), 0); $('#prepTot').textContent = tot ? `Total des plages : ${fmtH(tot)}${cum !== tot ? ' · ' + fmtH(cum) + ' cumulées (tous préparateurs)' : ''}` : '';
   const h = parseFloat(f.duree.value); $('#dureeFmt').textContent = isNaN(h) ? '' : '= ' + fmtH(h);
 }
 function xdRender() { $('#xdl').innerHTML = (S.xd || []).map(d => `<span class="tag lg">${fmtShort(d)} <button type="button" class="lnk" data-act="rmDate" data-v="${d}">retirer</button></span>`).join(''); }
 
 const FL = { titre: 'Intitulé', typeId: 'Type', theme: 'Thème', objectif: 'Objectif', date: 'Date', debut: 'Début', fin: 'Fin', duree: 'Durée prévue', preps: 'Préparation', dureeReelle: 'Durée réelle', statut: 'Statut', modalite: 'Modalité', lieuId: 'Lieu', lienVisio: 'Lien visio', adresse: 'Adresse', titulaireId: 'Titulaire', suppleantId: 'Suppléant', suppIntervenu: 'Suppléant intervenu', coanim: 'Coanimateurs', coanimRole: 'Rôle coanimation', caisse: 'Caisse/unité', agences: 'Agences', demandeur: 'Demandeur', population: 'Population', profil: 'Profil', prevus: 'Participants prévus', presents: 'Participants présents', participants: 'Participants', dateDemande: 'Date de la demande', origine: 'Origine de la demande', organisateur: 'Organisateur', logistique: 'Logistique', support: 'Support', docs: 'Documents', commentaire: 'Commentaire', motif: 'Motif', dateDecision: 'Date de décision', nouvelleDate: 'Nouvelle date' };
 function showVal(k, v) {
-  if (k === 'preps') return (v || []).map(p => `${p.date ? fmtShort(p.date) : 'sans date'} ${fmtH(p.h)}${p.reel != null ? ' (réel ' + fmtH(p.reel) + ')' : ''}`).join(' ; ') || '∅';
+  if (k === 'preps') return (v || []).map(p => `${p.date ? fmtShort(p.date) : 'sans date'} ${fmtH(p.h)}${p.reel != null ? ' (réel ' + fmtH(p.reel) + ')' : ''}${(p.animIds || []).length ? ' [' + p.animIds.map(animName).join(', ') + ']' : ''}`).join(' ; ') || '∅';
   if (Array.isArray(v)) return v.map(x => typeof x === 'object' ? x.nom : animName(x)).join(', ') || '∅';
   if (v === '' || v === null || v === undefined) return '∅';
   if (k === 'typeId') return typeName(v); if (k === 'lieuId') return (L(v) || {}).name || '∅'; if (k === 'titulaireId' || k === 'suppleantId') return animName(v);
@@ -263,7 +272,7 @@ async function saveSession(form) {
   if (s.suppleantId === '' ) s.suppIntervenu = false;
   s.coanim = (s.coanim || []).filter(x => x !== s.titulaireId);
   const pc = $('#preps', form);
-  if (pc) s.preps = $$('.prep-row', pc).map(r => { const g = k => $('[data-k=' + k + ']', r).value; return { id: r.dataset.id || uid(), date: g('date'), debut: g('debut'), h: +g('h') || 0, reel: g('reel') === '' ? null : +g('reel'), note: g('note').trim() }; }).filter(p => p.date || p.h > 0 || p.reel != null);
+  if (pc) s.preps = $$('.prep-row', pc).map(r => { const g = k => $('[data-k=' + k + ']', r).value; return { id: r.dataset.id || uid(), date: g('date'), debut: g('debut'), h: +g('h') || 0, reel: g('reel') === '' ? null : +g('reel'), note: g('note').trim(), animIds: $$('[data-k=anim]:checked', r).map(i => i.value) }; }).filter(p => p.date || p.h > 0 || p.reel != null);
   if (!s.titre) s.titre = typeName(s.typeId) + (s.modalite === 'distance' ? ' – à distance' : (s.lieuId ? ' – ' + (L(s.lieuId) || {}).name : ''));
   if (['annulee', 'reportee'].includes(s.statut) && s.statut !== old.statut) { s.dateDecision ||= today(); s.decisionPar = S.user.name; }
   if (s.statut === 'realisee' && s.dureeReelle == null) s.dureeReelle = s.duree;
@@ -321,7 +330,7 @@ function mergeDialog(k, id) {
   const m = modal(`<form id="edForm"><div class="mhead"><h2>Fusionner « ${esc(src.name)} »</h2><button type="button" class="x" data-act="close">✕</button></div><div class="mbody"><p>Toutes les sessions de « ${esc(src.name)} » seront rattachées à l'élément choisi, puis « ${esc(src.name)} » sera supprimé (son nom devient un alias pour un lieu).</p><label class="f"><span>Fusionner dans</span><select name="to">${opts(list)}</select></label></div><div class="mfoot"><span class="sp"></span><button type="button" class="btn" data-act="close">Annuler</button><button class="btn primary">Fusionner</button></div></form>`, 'small');
   $('#edForm').onsubmit2 = f => {
     const to = f.to.value;
-    DB.sessions.forEach(s => { let ch = false; if (k === 'lieu' && s.lieuId === id) { s.lieuId = to; ch = true; } if (k === 'anim') { ['titulaireId', 'suppleantId'].forEach(p => { if (s[p] === id) { s[p] = to; ch = true; } }); if ((s.coanim || []).includes(id)) { s.coanim = [...new Set(s.coanim.map(x => x === id ? to : x))]; ch = true; } } if (ch) stamp(s); });
+    DB.sessions.forEach(s => { let ch = false; if (k === 'lieu' && s.lieuId === id) { s.lieuId = to; ch = true; } if (k === 'anim') { ['titulaireId', 'suppleantId'].forEach(p => { if (s[p] === id) { s[p] = to; ch = true; } }); if ((s.coanim || []).includes(id)) { s.coanim = [...new Set(s.coanim.map(x => x === id ? to : x))]; ch = true; } (s.preps || []).forEach(p => { if ((p.animIds || []).includes(id)) { p.animIds = [...new Set(p.animIds.map(x => x === id ? to : x))]; ch = true; } }); } if (ch) stamp(s); });
     if (k === 'lieu') { const t = L(to); t.aliases = [...new Set([...(t.aliases || []), src.name, ...(src.aliases || [])])]; stamp(t); DB.lieux = DB.lieux.filter(x => x.id !== id); } else DB.animateurs = DB.animateurs.filter(x => x.id !== id);
     DB.del[id] = new Date().toISOString(); persist(); closeModal(); render(); toast('Fusion effectuée.');
   };
