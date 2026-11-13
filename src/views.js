@@ -61,7 +61,7 @@ function viewDashboard() {
       ${kpi(r.st.annulee, 'Annulées', 'exclues des heures', ST.annulee.color)}
       ${kpi(fmtH(r.hReal), 'Heures réalisées', 'sessions réalisées uniquement', ST.realisee.color)}
       ${kpi(fmtH(r.hPlan), 'Heures planifiées', 'hors annulées et reportées')}
-      ${kpi(fmtH(r.pReal), 'Préparation réalisée', `prévue : ${fmtH(r.pPlan)}`, ST.reportee.color)}
+      ${kpi(fmtH(r.pReal), 'Préparation réalisée', `prévue : ${fmtH(r.pPlan)} · plages passées ou session réalisée`, ST.reportee.color)}
       ${kpi(fmtH(r.hReal + r.pReal), 'Temps total réalisé', 'animation + préparation', ST.confirmee.color)}
       ${kpi(r.prevus || '—', 'Participants prévus', 'sessions réalisées')}
       ${kpi(r.partN ? r.presents : '—', 'Participants présents', '')}
@@ -77,7 +77,7 @@ function viewDashboard() {
     ${tbl('Synthèse par animateur', rows(r.anim), 'Animateur')}
     ${tbl('Synthèse par type de formation', rows(r.type), 'Type')}
     ${tbl('Synthèse par secteur géographique', rows(r.secteur), 'Secteur')}
-    <p class="muted note">Règles : une session annulée ou reportée n'entre ni dans les heures planifiées ni dans les heures réalisées. Les heures réalisées utilisent la durée réelle saisie (à défaut, la durée prévue). Si le suppléant est intervenu, la session est comptée pour lui plutôt que pour le titulaire ; les coanimateurs sont comptés pour chaque session. La préparation suit la même règle (prévue : toutes les sessions actives ; réalisée : sessions réalisées, avec les heures réelles saisies ou, à défaut, les prévues). Chaque plage est comptée pour chacun des animateurs qui la préparent : les heures de préparation et le « temps réalisé » additionnent donc des heures-personnes.</p>`;
+    <p class="muted note">Règles : une session annulée ou reportée n'entre ni dans les heures planifiées ni dans les heures réalisées. Les heures réalisées utilisent la durée réelle saisie (à défaut, la durée prévue). Si le suppléant est intervenu, la session est comptée pour lui plutôt que pour le titulaire ; les coanimateurs sont comptés pour chaque session. Préparation : la prévue compte toutes les plages des sessions actives ; la réalisée compte les plages dont la date est passée, celles d'une session réalisée et celles dont vous avez saisi des heures réelles (à défaut de saisie, les heures prévues). Chaque plage est comptée pour chacun des animateurs qui la préparent : les heures de préparation et le « temps réalisé » additionnent donc des heures-personnes.</p>`;
 }
 
 /* ===== Planning (calendrier) ===== */

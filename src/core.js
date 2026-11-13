@@ -97,7 +97,10 @@ const dureeEff = s => s.statut === 'realisee' ? (s.dureeReelle ?? s.duree ?? 0) 
 /** Heures cumulées : chaque plage compte pour chacun des animateurs qui la préparent (au moins 1) */
 const nPrep = p => Math.max(1, (p.animIds || []).length);
 const prepPlan = s => (s.preps || []).reduce((a, p) => a + (+p.h || 0) * nPrep(p), 0);
-const prepReal = s => (s.preps || []).reduce((a, p) => a + (p.reel ?? (+p.h || 0)) * nPrep(p), 0);
+/** Une plage est « réalisée » si la session est réalisée, si des heures réelles ont été saisies, ou si sa date est passée (session ni annulée ni reportée) */
+const prepDone = (s, p) => ACTIVE.includes(s.statut) && (s.statut === 'realisee' || p.reel != null || (!!p.date && p.date <= today()));
+const prepRealPl = (s, p) => prepDone(s, p) ? (p.reel ?? (+p.h || 0)) * nPrep(p) : 0;
+const prepReal = s => (s.preps || []).reduce((a, p) => a + prepRealPl(s, p), 0);
 const prepSlots = s => (s.preps || []).reduce((a, p) => a + (+p.h || 0), 0);
 function migrateDB(db) {
   for (const s of db.sessions || []) {
@@ -243,13 +246,13 @@ function stats(list) {
     r.st[s.statut]++;
     const active = ACTIVE.includes(s.statut), done = s.statut === 'realisee';
     const h = s.duree || 0, hr = dureeEff(s);
-    const p = prepPlan(s), pr = done ? prepReal(s) : 0;
+    const p = prepPlan(s), pr = prepReal(s);
     if (active) { r.hPlan += h; r.pPlan += p; }
-    if (done) r.pReal += pr;
+    r.pReal += pr;
     if (done) { r.hReal += hr; if (s.prevus != null) r.prevus += +s.prevus; if (s.presents != null) { r.presents += +s.presents; r.partN++; } }
     const targets = [['type', s.typeId, typeName(s.typeId)], ['lieu', s.modalite === 'distance' ? 'dist' : (s.lieuId || '-'), lieuName(s) || 'Non renseigné'], ['secteur', ((L(s.lieuId) || {}).secteur || (s.modalite === 'distance' ? 'À distance' : 'Non renseigné')), ((L(s.lieuId) || {}).secteur || (s.modalite === 'distance' ? 'À distance' : 'Non renseigné'))]];
-    for (const [g, k, nm] of targets) { const e = ent(r[g], k, nm); if (active) { e.prev++; e.hPrev += h; e.pPrev += p; } if (done) { e.real++; e.hReal += hr; e.pReal += pr; } if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
-    if (active) for (const pl of s.preps || []) for (const a of (pl.animIds || []).length ? pl.animIds : ['']) { const e = ent(r.anim, a || '-', a ? animName(a) : 'Non attribué'); e.pPrev += +pl.h || 0; if (done) e.pReal += pl.reel ?? (+pl.h || 0); }
+    for (const [g, k, nm] of targets) { const e = ent(r[g], k, nm); if (active) { e.prev++; e.hPrev += h; e.pPrev += p; } if (done) { e.real++; e.hReal += hr; } e.pReal += pr; if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
+    if (active) for (const pl of s.preps || []) for (const a of (pl.animIds || []).length ? pl.animIds : ['']) { const e = ent(r.anim, a || '-', a ? animName(a) : 'Non attribué'); e.pPrev += +pl.h || 0; if (prepDone(s, pl)) e.pReal += pl.reel ?? (+pl.h || 0); }
     const who = effective(s).length ? effective(s) : [''];
     for (const a of who) { const e = ent(r.anim, a || '-', a ? animName(a) : 'Non attribué'); if (active) { e.prev++; e.hPrev += h; } if (done) { e.real++; e.hReal += hr; } if (s.statut === 'annulee') e.ann++; if (s.statut === 'reportee') e.rep++; }
     const m = s.date.slice(0, 7); r.mois[m] ||= Object.fromEntries(STATUTS.map(x => [x.id, 0])); r.mois[m][s.statut]++;
@@ -263,7 +266,7 @@ const MODAL = { presentiel: 'Présentiel', distance: 'À distance' };
 const SESSION_COLS = ['Date', 'Début', 'Fin', 'Durée prévue (h)', 'Durée réelle (h)', 'Année', 'Intitulé', 'Type', 'Thème / produit', 'Statut', 'Modalité', 'Lieu', 'Secteur', 'Préparation prévue (h)', 'Préparation réelle (h)', 'Dates de préparation', 'Préparée par', 'Titulaire', 'Suppléant', 'Suppléant intervenu', 'Coanimateurs', 'Équipe', 'Demandeur', 'Participants prévus', 'Participants présents', 'Commentaire', 'Motif annulation/report', 'Nouvelle date'];
 function sessionRow(s) {
   const d = x => x ? parseISO(x) : null;
-  return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', prepPlan(s) || null, (s.statut === 'realisee' || (s.preps || []).some(p => p.reel != null)) ? prepReal(s) : null, (s.preps || []).filter(p => p.date).map(p => fmtShort(p.date)).join(', '), prepAnims(s).map(animName).join(', '), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
+  return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', prepPlan(s) || null, prepReal(s) || null, (s.preps || []).filter(p => p.date).map(p => fmtShort(p.date)).join(', '), prepAnims(s).map(animName).join(', '), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
 }
 const sortedSessions = l => [...l].sort((a, b) => (a.date + (a.debut || '')) < (b.date + (b.debut || '')) ? -1 : 1);
 function icsFor(list) {
