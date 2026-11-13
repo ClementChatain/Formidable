@@ -45,7 +45,7 @@ document.addEventListener('change', e => {
     const tp = T(findByName('type', t.value)), rows = $$('.prep-row');
     if (tp && tp.prepH > 0 && S.pf.all === '') {
       if (!rows.length) { $('#preps').insertAdjacentHTML('beforeend', prepRowHTML({ h: tp.prepH, animIds: defaultPrepAnims() }, S.pf)); $('.prep-row').dataset.auto = '1'; $('.prep-row').dataset.anauto = '1'; }
-      else if (rows.length === 1 && rows[0].dataset.auto === '1') $('[data-k=h]', rows[0]).value = tp.prepH;
+      else if (rows.length === 1 && rows[0].dataset.auto === '1') { $('[data-k=h]', rows[0]).value = tp.prepH; if (rows[0].dataset.reauto === '1') $('[data-k=reel]', rows[0]).value = tp.prepH; }
     }
     formSync();
   }
@@ -58,8 +58,15 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.f === 'q') { clearTimeout(TMR); TMR = setTimeout(() => { curF().q = t.value; render(); }, 250); }
   else if (t.hasAttribute('data-hq')) { clearTimeout(TMR); TMR = setTimeout(() => { S.hq = t.value; render(); }, 250); }
-  else if (t.closest('.prep-row')) { t.closest('.prep-row').dataset.auto = ''; formSync(); }
-  else if (t.closest('#sf') && (t.name === 'date' || t.name === 'duree')) formSync();
+  else if (t.closest('.prep-row')) {
+    const row = t.closest('.prep-row');
+    if (t.dataset.k === 'h' && row.dataset.reauto === '1') $('[data-k=reel]', row).value = t.value;
+    if (t.dataset.k === 'reel') row.dataset.reauto = '';
+    if (t.dataset.k === 'h' || t.dataset.k === 'reel') row.dataset.auto = '';
+    formSync();
+  }
+  else if (t.closest('#sf') && t.name === 'dureeReelle') t.dataset.auto = '';
+  else if (t.closest('#sf') && (t.name === 'date' || t.name === 'duree')) { if (t.name === 'duree' && t.form.dureeReelle.dataset.auto === '1') t.form.dureeReelle.value = t.value; formSync(); }
 });
 document.addEventListener('click', e => { const c = e.target.closest('.prep-row [data-k=anim]'); if (c) c.closest('.prep-row').dataset.anauto = ''; });
 document.addEventListener('submit', async e => {
@@ -233,6 +240,7 @@ function formSync() {
   $('#annee').value = f.date.value ? f.date.value.slice(0, 4) : '';
   const tp = T(findByName('type', f.typeId.value)); $('#prepHint').textContent = tp && tp.prepH > 0 ? `Défaut « ${tp.name} » : ${fmtH(tp.prepH)} au total.` : '';
   const tot = $$('.prep-row [data-k=h]', f).reduce((x, i) => x + (+i.value || 0), 0), cum = $$('.prep-row', f).reduce((x, r) => x + (+$('[data-k=h]', r).value || 0) * Math.max(1, $$('[data-k=anim]:checked', r).length), 0); $('#prepTot').textContent = tot ? `Total des plages : ${fmtH(tot)}${cum !== tot ? ' · ' + fmtH(cum) + ' cumulées (tous préparateurs)' : ''}` : '';
+  if (f.dureeReelle.dataset.auto === '1') f.dureeReelle.value = f.duree.value;
   const h = parseFloat(f.duree.value); $('#dureeFmt').textContent = isNaN(h) ? '' : '= ' + fmtH(h);
 }
 function xdRender() { $('#xdl').innerHTML = (S.xd || []).map(d => `<span class="tag lg">${fmtShort(d)} <button type="button" class="lnk" data-act="rmDate" data-v="${d}">retirer</button></span>`).join(''); }
@@ -252,6 +260,7 @@ async function saveSession(form) {
   const ok = n => { const e = form.elements[n]; return e && !(e.length ? e[0].disabled : e.disabled) ? e : null; };
   strF.forEach(n => { const e = ok(n); if (e) s[n] = e.value.trim(); });
   ['duree', 'dureeReelle', 'prevus', 'presents'].forEach(n => { const e = ok(n); if (e) s[n] = e.value === '' ? null : +e.value; });
+  if (ok('dureeReelle') && form.dureeReelle.dataset.auto === '1' && s.statut !== 'realisee') s.dureeReelle = null;
   if (ok('suppIntervenu')) s.suppIntervenu = form.suppIntervenu.checked;
   if (ok('coanim')) s.coanim = $$('input[name=coanim]:checked', form).map(x => x.value);
   if (ok('docs')) s.docs = form.docs.value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const [n, ...r] = l.split('|'); return { nom: n.trim(), lien: r.join('|').trim() }; });
@@ -272,7 +281,7 @@ async function saveSession(form) {
   if (s.suppleantId === '' ) s.suppIntervenu = false;
   s.coanim = (s.coanim || []).filter(x => x !== s.titulaireId);
   const pc = $('#preps', form);
-  if (pc) s.preps = $$('.prep-row', pc).map(r => { const g = k => $('[data-k=' + k + ']', r).value; return { id: r.dataset.id || uid(), date: g('date'), debut: g('debut'), h: +g('h') || 0, reel: g('reel') === '' ? null : +g('reel'), note: g('note').trim(), animIds: $$('[data-k=anim]:checked', r).map(i => i.value) }; }).filter(p => p.date || p.h > 0 || p.reel != null);
+  if (pc) s.preps = $$('.prep-row', pc).map(r => { const g = k => $('[data-k=' + k + ']', r).value; return { id: r.dataset.id || uid(), date: g('date'), debut: g('debut'), h: +g('h') || 0, reel: g('reel') === '' || (r.dataset.reauto === '1' && s.statut !== 'realisee') ? null : +g('reel'), note: g('note').trim(), animIds: $$('[data-k=anim]:checked', r).map(i => i.value) }; }).filter(p => p.date || p.h > 0 || p.reel != null);
   if (!s.titre) s.titre = typeName(s.typeId) + (s.modalite === 'distance' ? ' – à distance' : (s.lieuId ? ' – ' + (L(s.lieuId) || {}).name : ''));
   if (['annulee', 'reportee'].includes(s.statut) && s.statut !== old.statut) { s.dateDecision ||= today(); s.decisionPar = S.user.name; }
   if (s.statut === 'realisee' && s.dureeReelle == null) s.dureeReelle = s.duree;
