@@ -108,7 +108,15 @@ const ACT = {
   exportSessions: () => dlXlsx([{ name: 'Sessions', rows: [SESSION_COLS, ...sortedSessions(filtered()).map(sessionRow)] }], 'sessions'),
   exportBilan: () => exportBilan(),
   exportBy: (_, v) => exportBy(v),
-  exportIcs: () => download(icsFor(sortedSessions(filtered()).filter(s => s.statut !== 'reportee')), 'planning-formations.ics'),
+  mine: () => { curF().anim = S.user.animateurId; render(); },
+  exportIcs: () => {
+    const f = S.view === 'planning' ? { ...curF(), year: '', from: '', to: '', scope: '' } : curF(), sc = scoped(f);
+    const forms = sortedSessions(sc.forms).filter(s => s.statut !== 'reportee');
+    if (!forms.length && !sc.preps.length) return toast('Aucune session à exporter.', 'err');
+    const who = f.anim ? '-' + norm(animName(f.anim)).replace(/ /g, '-') : '';
+    download(icsFor(forms, sc.preps), `planning-formations${who}.ics`);
+    toast(`${forms.length} formation(s) et ${sc.preps.length} plage(s) de préparation exportées : ouvrez le fichier pour les ajouter à Outlook.`);
+  },
   exportHist: () => dlXlsx([{ name: 'Historique', rows: [['Date', 'Utilisateur', 'Action', 'Session', 'Détail'], ...DB.history.slice().reverse().map(h => [new Date(h.ts).toLocaleString('fr-FR'), h.user, h.action, h.label, h.detail])] }], 'historique'),
   /* fiche */
   calcDuree: () => { const f = $('#sf'), a = t2m(f.debut.value), b = t2m(f.fin.value); if (a === null || b === null || b <= a) return toast('Renseignez des horaires valides.', 'err'); f.duree.value = Math.round((b - a) / 15) / 4; formSync(); },

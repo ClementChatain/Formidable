@@ -505,6 +505,15 @@ function syncHTML() {
 /* ===== Filtrage ===== */
 /** Filtres propres à chaque onglet : tableau de bord = année en cours ; sessions = à venir (jour inclus) */
 function curF() { return S.F[S.view] ||= S.view === 'dashboard' ? { year: String(new Date().getFullYear()) } : S.view === 'sessions' ? { scope: 'avenir' } : {}; }
+/** Filtre « personne » (animateur ou équipe) : formations animées par elle + SES plages de préparation uniquement */
+const personSet = f => f.anim ? new Set([f.anim]) : f.equipe ? new Set(DB.animateurs.filter(a => a.equipe === f.equipe).map(a => a.id)) : null;
+const animates = (s, set) => !set || [s.titulaireId, s.suppleantId, ...(s.coanim || [])].some(i => set.has(i));
+function scoped(f = curF()) {
+  const set = personSet(f), base = filtered(DB.sessions, { ...f, anim: '', equipe: '' });
+  const forms = base.filter(s => animates(s, set));
+  const preps = base.filter(s => !['annulee', 'reportee'].includes(s.statut)).flatMap(s => (s.preps || []).filter(p => p.date && +p.h > 0 && (!set || (p.animIds || []).some(i => set.has(i)))).map(p => ({ s, p })));
+  return { forms, preps, set };
+}
 function filtered(list = DB.sessions, f = curF()) {
   const t = today();
   return list.filter(s => {
@@ -582,11 +591,20 @@ function sessionRow(s) {
   return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', prepPlan(s) || null, prepReal(s) || null, (s.preps || []).filter(p => p.date).map(p => fmtShort(p.date)).join(', '), prepAnims(s).map(animName).join(', '), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
 }
 const sortedSessions = l => [...l].sort((a, b) => (a.date + (a.debut || '')) < (b.date + (b.debut || '')) ? -1 : 1);
-function icsFor(list) {
+function icsFor(list, preps) {
   const e = s => String(s).replace(/[\\;,]/g, m => '\\' + m).replace(/\r?\n/g, '\\n');
   const fold = l => { const b = TE.encode(l); if (b.length <= 74) return l; let out = '', cur = '', n = 0; for (const ch of l) { const k = TE.encode(ch).length; if (n + k > 73) { out += cur + '\r\n '; cur = ''; n = 0; } cur += ch; n += k; } return out + cur; };
   const stamp0 = new Date().toISOString().replace(/[-:]|\.\d+/g, '');
   const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Formidable//Planning formations//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Formations'];
+  const prepEv = (s, p, k) => {
+    if (['annulee', 'reportee'].includes(s.statut) || !p.date || !(+p.h > 0)) return;
+    const ts = s.mod ? s.mod.replace(/[-:]|\.\d+/g, '') : stamp0;
+    const pd = p.date.replace(/-/g, '');
+    L.push('BEGIN:VEVENT', `UID:${s.id}-prep${p.id || k}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(p.h)})${(p.animIds || []).length ? '\nPréparée par : ' + p.animIds.map(animName).join(', ') : ''}${p.note ? '\n' + p.note : ''}`)}`, 'TRANSP:OPAQUE');
+    if (p.debut) { const m = t2m(p.debut) + Math.round(p.h * 60); L.push(`DTSTART:${pd}T${p.debut.replace(':', '')}00`, `DTEND:${pd}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`); }
+    else L.push(`DTSTART;VALUE=DATE:${pd}`, `DTEND;VALUE=DATE:${addDays(p.date, 1).replace(/-/g, '')}`);
+    L.push('END:VEVENT');
+  };
   for (const s of list) {
     const d = s.date.replace(/-/g, ''), ts = s.mod ? s.mod.replace(/[-:]|\.\d+/g, '') : stamp0;
     L.push('BEGIN:VEVENT', `UID:${s.id}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SEQUENCE:${s.mod ? Math.floor(Date.parse(s.mod) / 60000) % 2000000000 : 0}`);
@@ -599,15 +617,9 @@ function icsFor(list) {
     L.push(`DESCRIPTION:${e([`Type : ${typeName(s.typeId)}${s.theme ? ' · ' + s.theme : ''}`, `Statut : ${ST[s.statut].label}`, s.titulaireId ? `Animateur titulaire : ${animName(s.titulaireId)}` : '', s.suppleantId ? `Suppléant : ${animName(s.suppleantId)}` : '', (s.coanim || []).length ? `Coanimateur(s) : ${s.coanim.map(animName).join(', ')}` : '', s.lienVisio ? `Lien de connexion : ${s.lienVisio}` : '', s.commentaire].filter(Boolean).join('\n'))}`);
     if (s.debut && s.statut !== 'annulee') L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Rappel formation', 'TRIGGER:-PT30M', 'END:VALARM');
     L.push('END:VEVENT');
-    if (!['annulee', 'reportee'].includes(s.statut)) (s.preps || []).forEach((p, k) => {
-      if (!p.date || !(+p.h > 0)) return;
-      const pd = p.date.replace(/-/g, '');
-      L.push('BEGIN:VEVENT', `UID:${s.id}-prep${p.id || k}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(p.h)})${(p.animIds || []).length ? '\nPréparée par : ' + p.animIds.map(animName).join(', ') : ''}${p.note ? '\n' + p.note : ''}`)}`, 'TRANSP:OPAQUE');
-      if (p.debut) { const m = t2m(p.debut) + Math.round(p.h * 60); L.push(`DTSTART:${pd}T${p.debut.replace(':', '')}00`, `DTEND:${pd}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`); }
-      else L.push(`DTSTART;VALUE=DATE:${pd}`, `DTEND;VALUE=DATE:${addDays(p.date, 1).replace(/-/g, '')}`);
-      L.push('END:VEVENT');
-    });
+    if (!preps) (s.preps || []).forEach((p, k) => prepEv(s, p, k));
   }
+  (preps || []).forEach(({ s, p }, k) => prepEv(s, p, k));
   L.push('END:VCALENDAR'); return new Blob([L.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
 }
 const L2 = id => DB.lieux.find(x => x.id === id);
@@ -792,10 +804,10 @@ function calNav() {
   <div class="calopt">${c.mode === 'res' ? `<label>Lignes <select data-c="group">${opts([['anim', 'Animateurs'], ['lieu', 'Lieux'], ['type', 'Types de formation']], c.group || 'anim')}</select></label>` : ''}<label>Couleur <select data-c="color">${opts([['statut', 'selon le statut'], ['type', 'selon le type']], c.color)}</select></label></div></div>`;
 }
 function viewPlanning() {
-  const c = S.cal, list = filtered(DB.sessions, { ...curF(), year: '', from: '', to: '', scope: '' }), by = {};
+  const c = S.cal, sc = scoped({ ...curF(), year: '', from: '', to: '', scope: '' }), list = sc.forms, by = {};
   list.forEach(s => (by[s.date] ||= []).push(s));
   const prepBy = {};
-  list.forEach(s => { if (!['annulee', 'reportee'].includes(s.statut)) (s.preps || []).forEach(p => { if (p.date && +p.h > 0) (prepBy[p.date] ||= []).push({ s, p }); }); });
+  sc.preps.forEach(x => (prepBy[x.p.date] ||= []).push(x));
   Object.values(by).forEach(a => a.sort((x, y) => (x.debut || '99') < (y.debut || '99') ? -1 : 1));
   let body = '';
   const t = today();
@@ -823,7 +835,7 @@ function viewPlanning() {
     body = `<div class="scroll"><table class="rgrid"><thead><tr><th class="rname"></th>${Array.from({ length: nd }, (_, i) => { const d = `${ym}-${pad(i + 1)}`; return `<th class="${[0, 6].includes(parseISO(d).getDay()) ? 'we' : ''}${d === t ? ' today' : ''}"><small>${['D', 'L', 'M', 'M', 'J', 'V', 'S'][parseISO(d).getDay()]}</small>${i + 1}</th>`; }).join('')}<th>Σ h</th></tr></thead><tbody>${rowsData.map(([id, n, ss]) => `<tr><th class="rname">${esc(n)}</th>${Array.from({ length: nd }, (_, i) => { const d = `${ym}-${pad(i + 1)}`, x = ss.filter(s => s.date === d); return `<td class="${[0, 6].includes(parseISO(d).getDay()) ? 'we' : ''}">${x.map(s => `<button class="rc${s.statut === 'annulee' ? ' cancelled' : ''}" style="--c:${S.cal.color === 'type' ? (T(s.typeId) || {}).color : ST[s.statut].color}" data-act="open" data-id="${s.id}" title="${esc(sessionLabel(s) + ' · ' + ST[s.statut].label)}">${esc((typeName(s.typeId)).slice(0, 3))}</button>`).join('')}</td>`; }).join('')}<td class="n">${fmtH(sum(ss.filter(s => ACTIVE.includes(s.statut)), dureeEff))}</td></tr>`).join('') || `<tr><td colspan="${nd + 2}" class="muted">Aucune session.</td></tr>`}</tbody></table></div>`;
   }
   const legend = S.cal.color === 'type' ? DB.settings.types.map(t => `<span><i style="background:${t.color}"></i>${esc(t.name)}</span>`).join('') : STATUTS.map(s => `<span><i style="background:${s.color}"></i>${s.label}</span>`).join('');
-  return `<div class="page-h"><div><h1>Planning</h1></div><div class="actions noprint">${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportIcs" title="Fichier .ics des sessions affichées : un double-clic les ajoute à Outlook">📅 Ajouter à Outlook</button>' : ''}</div></div>${filterBar(false)}${calNav()}<div class="legend">${legend}</div>${body}`;
+  return `<div class="page-h"><div><h1>Planning</h1></div><div class="actions noprint">${S.user.animateurId ? '<button class="btn" data-act="mine">👤 Mon planning</button>' : ''}${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportIcs" title="Fichier .ics des sessions affichées : un double-clic les ajoute à Outlook">📅 Ajouter à Outlook</button>' : ''}</div></div>${filterBar(false)}${sc.set ? '<p class="info">Filtre personne : seules les formations animées par la personne et <b>ses</b> plages de préparation sont affichées (et exportées vers Outlook).</p>' : ''}${calNav()}<div class="legend">${legend}</div>${body}`;
 }
 
 /* ===== Liste des sessions ===== */
@@ -1062,7 +1074,15 @@ const ACT = {
   exportSessions: () => dlXlsx([{ name: 'Sessions', rows: [SESSION_COLS, ...sortedSessions(filtered()).map(sessionRow)] }], 'sessions'),
   exportBilan: () => exportBilan(),
   exportBy: (_, v) => exportBy(v),
-  exportIcs: () => download(icsFor(sortedSessions(filtered()).filter(s => s.statut !== 'reportee')), 'planning-formations.ics'),
+  mine: () => { curF().anim = S.user.animateurId; render(); },
+  exportIcs: () => {
+    const f = S.view === 'planning' ? { ...curF(), year: '', from: '', to: '', scope: '' } : curF(), sc = scoped(f);
+    const forms = sortedSessions(sc.forms).filter(s => s.statut !== 'reportee');
+    if (!forms.length && !sc.preps.length) return toast('Aucune session à exporter.', 'err');
+    const who = f.anim ? '-' + norm(animName(f.anim)).replace(/ /g, '-') : '';
+    download(icsFor(forms, sc.preps), `planning-formations${who}.ics`);
+    toast(`${forms.length} formation(s) et ${sc.preps.length} plage(s) de préparation exportées : ouvrez le fichier pour les ajouter à Outlook.`);
+  },
   exportHist: () => dlXlsx([{ name: 'Historique', rows: [['Date', 'Utilisateur', 'Action', 'Session', 'Détail'], ...DB.history.slice().reverse().map(h => [new Date(h.ts).toLocaleString('fr-FR'), h.user, h.action, h.label, h.detail])] }], 'historique'),
   /* fiche */
   calcDuree: () => { const f = $('#sf'), a = t2m(f.debut.value), b = t2m(f.fin.value); if (a === null || b === null || b <= a) return toast('Renseignez des horaires valides.', 'err'); f.duree.value = Math.round((b - a) / 15) / 4; formSync(); },

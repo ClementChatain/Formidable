@@ -95,10 +95,10 @@ function calNav() {
   <div class="calopt">${c.mode === 'res' ? `<label>Lignes <select data-c="group">${opts([['anim', 'Animateurs'], ['lieu', 'Lieux'], ['type', 'Types de formation']], c.group || 'anim')}</select></label>` : ''}<label>Couleur <select data-c="color">${opts([['statut', 'selon le statut'], ['type', 'selon le type']], c.color)}</select></label></div></div>`;
 }
 function viewPlanning() {
-  const c = S.cal, list = filtered(DB.sessions, { ...curF(), year: '', from: '', to: '', scope: '' }), by = {};
+  const c = S.cal, sc = scoped({ ...curF(), year: '', from: '', to: '', scope: '' }), list = sc.forms, by = {};
   list.forEach(s => (by[s.date] ||= []).push(s));
   const prepBy = {};
-  list.forEach(s => { if (!['annulee', 'reportee'].includes(s.statut)) (s.preps || []).forEach(p => { if (p.date && +p.h > 0) (prepBy[p.date] ||= []).push({ s, p }); }); });
+  sc.preps.forEach(x => (prepBy[x.p.date] ||= []).push(x));
   Object.values(by).forEach(a => a.sort((x, y) => (x.debut || '99') < (y.debut || '99') ? -1 : 1));
   let body = '';
   const t = today();
@@ -126,7 +126,7 @@ function viewPlanning() {
     body = `<div class="scroll"><table class="rgrid"><thead><tr><th class="rname"></th>${Array.from({ length: nd }, (_, i) => { const d = `${ym}-${pad(i + 1)}`; return `<th class="${[0, 6].includes(parseISO(d).getDay()) ? 'we' : ''}${d === t ? ' today' : ''}"><small>${['D', 'L', 'M', 'M', 'J', 'V', 'S'][parseISO(d).getDay()]}</small>${i + 1}</th>`; }).join('')}<th>Σ h</th></tr></thead><tbody>${rowsData.map(([id, n, ss]) => `<tr><th class="rname">${esc(n)}</th>${Array.from({ length: nd }, (_, i) => { const d = `${ym}-${pad(i + 1)}`, x = ss.filter(s => s.date === d); return `<td class="${[0, 6].includes(parseISO(d).getDay()) ? 'we' : ''}">${x.map(s => `<button class="rc${s.statut === 'annulee' ? ' cancelled' : ''}" style="--c:${S.cal.color === 'type' ? (T(s.typeId) || {}).color : ST[s.statut].color}" data-act="open" data-id="${s.id}" title="${esc(sessionLabel(s) + ' · ' + ST[s.statut].label)}">${esc((typeName(s.typeId)).slice(0, 3))}</button>`).join('')}</td>`; }).join('')}<td class="n">${fmtH(sum(ss.filter(s => ACTIVE.includes(s.statut)), dureeEff))}</td></tr>`).join('') || `<tr><td colspan="${nd + 2}" class="muted">Aucune session.</td></tr>`}</tbody></table></div>`;
   }
   const legend = S.cal.color === 'type' ? DB.settings.types.map(t => `<span><i style="background:${t.color}"></i>${esc(t.name)}</span>`).join('') : STATUTS.map(s => `<span><i style="background:${s.color}"></i>${s.label}</span>`).join('');
-  return `<div class="page-h"><div><h1>Planning</h1></div><div class="actions noprint">${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportIcs" title="Fichier .ics des sessions affichées : un double-clic les ajoute à Outlook">📅 Ajouter à Outlook</button>' : ''}</div></div>${filterBar(false)}${calNav()}<div class="legend">${legend}</div>${body}`;
+  return `<div class="page-h"><div><h1>Planning</h1></div><div class="actions noprint">${S.user.animateurId ? '<button class="btn" data-act="mine">👤 Mon planning</button>' : ''}${can.edit() ? '<button class="btn primary" data-act="new">+ Nouvelle session</button>' : ''}${can.exp() ? '<button class="btn" data-act="exportIcs" title="Fichier .ics des sessions affichées : un double-clic les ajoute à Outlook">📅 Ajouter à Outlook</button>' : ''}</div></div>${filterBar(false)}${sc.set ? '<p class="info">Filtre personne : seules les formations animées par la personne et <b>ses</b> plages de préparation sont affichées (et exportées vers Outlook).</p>' : ''}${calNav()}<div class="legend">${legend}</div>${body}`;
 }
 
 /* ===== Liste des sessions ===== */

@@ -192,6 +192,15 @@ function syncHTML() {
 /* ===== Filtrage ===== */
 /** Filtres propres à chaque onglet : tableau de bord = année en cours ; sessions = à venir (jour inclus) */
 function curF() { return S.F[S.view] ||= S.view === 'dashboard' ? { year: String(new Date().getFullYear()) } : S.view === 'sessions' ? { scope: 'avenir' } : {}; }
+/** Filtre « personne » (animateur ou équipe) : formations animées par elle + SES plages de préparation uniquement */
+const personSet = f => f.anim ? new Set([f.anim]) : f.equipe ? new Set(DB.animateurs.filter(a => a.equipe === f.equipe).map(a => a.id)) : null;
+const animates = (s, set) => !set || [s.titulaireId, s.suppleantId, ...(s.coanim || [])].some(i => set.has(i));
+function scoped(f = curF()) {
+  const set = personSet(f), base = filtered(DB.sessions, { ...f, anim: '', equipe: '' });
+  const forms = base.filter(s => animates(s, set));
+  const preps = base.filter(s => !['annulee', 'reportee'].includes(s.statut)).flatMap(s => (s.preps || []).filter(p => p.date && +p.h > 0 && (!set || (p.animIds || []).some(i => set.has(i)))).map(p => ({ s, p })));
+  return { forms, preps, set };
+}
 function filtered(list = DB.sessions, f = curF()) {
   const t = today();
   return list.filter(s => {
@@ -269,11 +278,20 @@ function sessionRow(s) {
   return [d(s.date), s.debut, s.fin, s.duree, s.dureeReelle, +s.date.slice(0, 4), s.titre, typeName(s.typeId), s.theme, ST[s.statut].label, MODAL[s.modalite], lieuName(s), (L(s.lieuId) || {}).secteur || '', prepPlan(s) || null, prepReal(s) || null, (s.preps || []).filter(p => p.date).map(p => fmtShort(p.date)).join(', '), prepAnims(s).map(animName).join(', '), animName(s.titulaireId), animName(s.suppleantId), s.suppIntervenu ? 'Oui' : '', (s.coanim || []).map(animName).join(', '), (A(s.titulaireId) || {}).equipe || '', s.demandeur, s.prevus, s.presents, s.commentaire, s.motif, d(s.nouvelleDate)];
 }
 const sortedSessions = l => [...l].sort((a, b) => (a.date + (a.debut || '')) < (b.date + (b.debut || '')) ? -1 : 1);
-function icsFor(list) {
+function icsFor(list, preps) {
   const e = s => String(s).replace(/[\\;,]/g, m => '\\' + m).replace(/\r?\n/g, '\\n');
   const fold = l => { const b = TE.encode(l); if (b.length <= 74) return l; let out = '', cur = '', n = 0; for (const ch of l) { const k = TE.encode(ch).length; if (n + k > 73) { out += cur + '\r\n '; cur = ''; n = 0; } cur += ch; n += k; } return out + cur; };
   const stamp0 = new Date().toISOString().replace(/[-:]|\.\d+/g, '');
   const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Formidable//Planning formations//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Formations'];
+  const prepEv = (s, p, k) => {
+    if (['annulee', 'reportee'].includes(s.statut) || !p.date || !(+p.h > 0)) return;
+    const ts = s.mod ? s.mod.replace(/[-:]|\.\d+/g, '') : stamp0;
+    const pd = p.date.replace(/-/g, '');
+    L.push('BEGIN:VEVENT', `UID:${s.id}-prep${p.id || k}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(p.h)})${(p.animIds || []).length ? '\nPréparée par : ' + p.animIds.map(animName).join(', ') : ''}${p.note ? '\n' + p.note : ''}`)}`, 'TRANSP:OPAQUE');
+    if (p.debut) { const m = t2m(p.debut) + Math.round(p.h * 60); L.push(`DTSTART:${pd}T${p.debut.replace(':', '')}00`, `DTEND:${pd}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`); }
+    else L.push(`DTSTART;VALUE=DATE:${pd}`, `DTEND;VALUE=DATE:${addDays(p.date, 1).replace(/-/g, '')}`);
+    L.push('END:VEVENT');
+  };
   for (const s of list) {
     const d = s.date.replace(/-/g, ''), ts = s.mod ? s.mod.replace(/[-:]|\.\d+/g, '') : stamp0;
     L.push('BEGIN:VEVENT', `UID:${s.id}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SEQUENCE:${s.mod ? Math.floor(Date.parse(s.mod) / 60000) % 2000000000 : 0}`);
@@ -286,15 +304,9 @@ function icsFor(list) {
     L.push(`DESCRIPTION:${e([`Type : ${typeName(s.typeId)}${s.theme ? ' · ' + s.theme : ''}`, `Statut : ${ST[s.statut].label}`, s.titulaireId ? `Animateur titulaire : ${animName(s.titulaireId)}` : '', s.suppleantId ? `Suppléant : ${animName(s.suppleantId)}` : '', (s.coanim || []).length ? `Coanimateur(s) : ${s.coanim.map(animName).join(', ')}` : '', s.lienVisio ? `Lien de connexion : ${s.lienVisio}` : '', s.commentaire].filter(Boolean).join('\n'))}`);
     if (s.debut && s.statut !== 'annulee') L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Rappel formation', 'TRIGGER:-PT30M', 'END:VALARM');
     L.push('END:VEVENT');
-    if (!['annulee', 'reportee'].includes(s.statut)) (s.preps || []).forEach((p, k) => {
-      if (!p.date || !(+p.h > 0)) return;
-      const pd = p.date.replace(/-/g, '');
-      L.push('BEGIN:VEVENT', `UID:${s.id}-prep${p.id || k}@formidable`, `DTSTAMP:${stamp0}`, `LAST-MODIFIED:${ts}`, `SUMMARY:${e('Préparation – ' + (s.titre || typeName(s.typeId)))}`, `DESCRIPTION:${e(`Préparation de la formation du ${fmtShort(s.date)} (${fmtH(p.h)})${(p.animIds || []).length ? '\nPréparée par : ' + p.animIds.map(animName).join(', ') : ''}${p.note ? '\n' + p.note : ''}`)}`, 'TRANSP:OPAQUE');
-      if (p.debut) { const m = t2m(p.debut) + Math.round(p.h * 60); L.push(`DTSTART:${pd}T${p.debut.replace(':', '')}00`, `DTEND:${pd}T${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`); }
-      else L.push(`DTSTART;VALUE=DATE:${pd}`, `DTEND;VALUE=DATE:${addDays(p.date, 1).replace(/-/g, '')}`);
-      L.push('END:VEVENT');
-    });
+    if (!preps) (s.preps || []).forEach((p, k) => prepEv(s, p, k));
   }
+  (preps || []).forEach(({ s, p }, k) => prepEv(s, p, k));
   L.push('END:VCALENDAR'); return new Blob([L.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
 }
 const L2 = id => DB.lieux.find(x => x.id === id);
