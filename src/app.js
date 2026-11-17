@@ -112,11 +112,20 @@ const ACT = {
   exportIcs: () => {
     const f = S.view === 'planning' ? { ...curF(), year: '', from: '', to: '', scope: '' } : curF(), sc = scoped(f);
     const forms = sortedSessions(sc.forms).filter(s => s.statut !== 'reportee');
-    if (!forms.length && !sc.preps.length) return toast('Aucune session à exporter.', 'err');
-    const who = f.anim ? '-' + norm(animName(f.anim)).replace(/ /g, '-') : '';
-    download(icsFor(forms, sc.preps), `planning-formations${who}.ics`);
-    toast(`${forms.length} formation(s) et ${sc.preps.length} plage(s) de préparation exportées : ouvrez le fichier pour les ajouter à Outlook.`);
+    openIcsDialog(forms, sc.preps, f.anim ? '-' + norm(animName(f.anim)).replace(/ /g, '-') : '');
   },
+  icsAll: (_, v) => { $$('.ics-cb').forEach(c => { c.checked = v === '1'; }); icsCount(); },
+  icsNew: () => { $$('.ics-cb').forEach(c => { c.checked = c.dataset.st !== 'done'; }); icsCount(); },
+  icsKind: (_, v) => { $$('.ics-cb').forEach(c => { c.checked = c.dataset.kind === v; }); icsCount(); },
+  icsGo: () => {
+    const keys = new Set($$('.ics-cb:checked').map(c => c.dataset.key)), items = S.ics.items.filter(x => keys.has(x.key));
+    if (!items.length) return toast('Cochez au moins un élément.', 'err');
+    const forms = items.filter(x => x.kind === 'f').map(x => x.s), preps = items.filter(x => x.kind === 'p').map(x => ({ s: x.s, p: x.p }));
+    download(icsFor(forms, preps), `planning-formations${S.ics.suffix}.ics`);
+    icsRemember(items); closeModal();
+    toast(`${forms.length} formation(s) et ${preps.length} préparation(s) téléchargées : ouvrez le fichier pour les ajouter à Outlook.`);
+  },
+  icsMark: () => { icsRemember(S.ics.items); closeModal(); toast('Éléments marqués comme déjà présents dans Outlook : ils seront décochés par défaut la prochaine fois.'); },
   exportHist: () => dlXlsx([{ name: 'Historique', rows: [['Date', 'Utilisateur', 'Action', 'Session', 'Détail'], ...DB.history.slice().reverse().map(h => [new Date(h.ts).toLocaleString('fr-FR'), h.user, h.action, h.label, h.detail])] }], 'historique'),
   /* fiche */
   calcDuree: () => { const f = $('#sf'), a = t2m(f.debut.value), b = t2m(f.fin.value); if (a === null || b === null || b <= a) return toast('Renseignez des horaires valides.', 'err'); f.duree.value = Math.round((b - a) / 15) / 4; formSync(); },
@@ -133,7 +142,7 @@ const ACT = {
   dup: () => { const s = DB.sessions.find(x => x.id === S.cur); closeModal(); openSession(null, '', { ...structuredClone(s), id: uid(), date: '', statut: 'planifiee', dureeReelle: null, preps: (s.preps || []).map(p => ({ ...p, id: uid(), date: '', debut: '', reel: null })), presents: null, motif: '', dateDecision: '', nouvelleDate: '', decisionPar: '', groupeId: '', remplaceId: '', suppIntervenu: false }); },
   del: async () => { const s = DB.sessions.find(x => x.id === S.cur); if (!await confirmBox(`Supprimer définitivement « ${sessionLabel(s)} » ? (Préférez le statut « Annulée » pour conserver la trace.)`, 'Supprimer', true)) return; DB.sessions = DB.sessions.filter(x => x.id !== s.id); DB.del[s.id] = new Date().toISOString(); logH('Suppression', s, 'Session supprimée'); persist(); closeModal(); render(); },
   mail: () => { const s = DB.sessions.find(x => x.id === S.cur), to = involved(s).map(i => (A(i) || {}).email).filter(Boolean).join(';'); const body = `Bonjour,\n\nSession : ${s.titre || typeName(s.typeId)}\nDate : ${fmtDate(s.date)}${s.debut ? ' de ' + s.debut + (s.fin ? ' à ' + s.fin : '') : ''}\nLieu : ${lieuName(s) || 'à définir'}${s.lienVisio ? '\nLien : ' + s.lienVisio : ''}\nStatut : ${ST[s.statut].label}${s.motif ? '\nMotif : ' + s.motif : ''}${s.nouvelleDate ? '\nNouvelle date : ' + fmtDate(s.nouvelleDate) : ''}\nTitulaire : ${animName(s.titulaireId) || '—'}${s.suppleantId ? '\nSuppléant : ' + animName(s.suppleantId) : ''}\n\nCordialement,\n${S.user.name}`; location.href = `mailto:${to}?subject=${encodeURIComponent('Formation – ' + (s.titre || typeName(s.typeId)) + ' – ' + fmtShort(s.date))}&body=${encodeURIComponent(body)}`; },
-  ics1: () => { const s = DB.sessions.find(x => x.id === S.cur); download(icsFor([s]), `formation-${s.date}-${norm(s.titre || typeName(s.typeId)).replace(/ /g, '-').slice(0, 40)}.ics`); toast('Fichier calendrier téléchargé : ouvrez-le (double-clic) pour l\'ajouter à Outlook.'); },
+  ics1: () => { const x = DB.sessions.find(y => y.id === S.cur); openIcsDialog([x], (x.preps || []).map(p => ({ s: x, p })).filter(o => o.p.date && +o.p.h > 0 && !['annulee', 'reportee'].includes(x.statut)), '-' + norm(x.titre || typeName(x.typeId)).replace(/ /g, '-').slice(0, 30)); },
   /* paramètres */
   settab: (_, v) => { S.setTab = v; render(); },
   edit: (el) => editDialog(el.dataset.k, el.dataset.id),
@@ -230,6 +239,31 @@ function defaultPrepAnims() {
   return [...new Set([findByName('anim', f.titulaireId.value.trim()), ...$$('input[name=coanim]:checked', f).map(x => x.value)].filter(Boolean))];
 }
 function setPrepAnims(row, ids) { $$('[data-k=anim]', row).forEach(c => { c.checked = ids.includes(c.value); }); }
+
+/* ===== Export Outlook : sélection des éléments, mémoire des exports (anti-doublons) ===== */
+const icsKey = () => 'formidable.ics.' + (S.user ? S.user.id : '');
+function icsMem() { try { return JSON.parse(localStorage.getItem(icsKey()) || '{}'); } catch (e) { return {}; } }
+function icsRemember(items) { const m = icsMem(), ts = new Date().toISOString(); items.forEach(x => { m[x.key] = { ts, sig: x.sig }; }); try { localStorage.setItem(icsKey(), JSON.stringify(m)); } catch (e) { } }
+function icsCount() { const n = $$('.ics-cb:checked').length, b = $('#icsGo'); if (b) { b.textContent = `Télécharger (${n})`; b.disabled = !n; } }
+function openIcsDialog(forms, preps, suffix) {
+  const mem = icsMem();
+  const items = [
+    ...forms.map(s => ({ key: s.id, kind: 'f', s, date: s.date, sig: [s.date, s.debut, s.fin, s.titre, s.statut, s.lieuId, s.modalite, s.lienVisio, s.titulaireId, s.suppleantId, s.duree, s.commentaire].join('|') })),
+    ...preps.map(({ s, p }) => ({ key: s.id + '-prep' + p.id, kind: 'p', s, p, date: p.date, sig: [p.date, p.debut, p.h, s.titre, s.statut, (p.animIds || []).join(',')].join('|') }))
+  ].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.kind < b.kind ? -1 : 1);
+  if (!items.length) return toast('Aucune session à exporter.', 'err');
+  items.forEach(x => { const r = mem[x.key]; x.st = !r ? 'new' : r.sig === x.sig ? 'done' : 'changed'; x.ts = r && r.ts; });
+  S.ics = { items, suffix: suffix || '' };
+  const nNew = items.filter(x => x.st !== 'done').length, nDone = items.length - nNew;
+  const lab = { new: '<span class="tag">Nouveau</span>', changed: '<span class="tag chg">Modifié depuis le dernier export</span>' };
+  modal(`<div class="mhead"><h2>Ajouter à Outlook</h2><button type="button" class="x" data-act="close" aria-label="Fermer">✕</button></div>
+  <div class="mbody"><p class="info">Choisissez ce que vous voulez importer. Les éléments <b>déjà exportés et inchangés</b> sont décochés pour éviter les doublons dans votre agenda${nDone ? ` (${nDone} concerné${nDone > 1 ? 's' : ''})` : ''}. Si vous réimportez un élément modifié, Outlook peut en créer une copie : supprimez alors l'ancien rendez-vous.</p>
+  <div class="actions wrap"><button class="btn sm" data-act="icsAll" data-v="1">Tout cocher</button><button class="btn sm" data-act="icsAll" data-v="0">Tout décocher</button><button class="btn sm" data-act="icsNew">Nouveautés et modifiés</button><button class="btn sm" data-act="icsKind" data-v="f">Formations seulement</button><button class="btn sm" data-act="icsKind" data-v="p">Préparations seulement</button></div>
+  <div class="scroll"><table class="tbl"><tbody>${items.map(x => `<tr><td><input type="checkbox" class="ics-cb" data-key="${esc(x.key)}" data-kind="${x.kind}" data-st="${x.st}"${x.st === 'done' ? '' : ' checked'} aria-label="Importer"></td><td>${x.kind === 'f' ? '📅 Formation' : '✏️ Préparation'}</td><td>${fmtDate(x.date)}${x.kind === 'f' ? (x.s.debut ? ' · ' + x.s.debut : '') : (x.p.debut ? ' · ' + x.p.debut : '') + ' · ' + fmtH(x.p.h)}</td><td><b>${esc(x.s.titre || typeName(x.s.typeId))}</b>${x.kind === 'f' && x.s.statut === 'annulee' ? ' <span class="tag chg">annulée</span>' : ''}${x.kind === 'p' ? '<br><small class="muted">pour la formation du ' + fmtShort(x.s.date) + '</small>' : ''}</td><td>${x.st === 'done' ? `<span class="muted">Déjà exporté le ${fmtShort(x.ts.slice(0, 10))}</span>` : lab[x.st]}</td></tr>`).join('')}</tbody></table></div></div>
+  <div class="mfoot"><button type="button" class="btn ghost" data-act="icsMark" title="À utiliser si vous avez déjà ajouté ces éléments à Outlook auparavant">Ils sont déjà dans Outlook</button><span class="sp"></span><button type="button" class="btn" data-act="close">Annuler</button><button type="button" class="btn primary" id="icsGo" data-act="icsGo">Télécharger</button></div>`, 'big');
+  icsCount();
+}
+document.addEventListener('change', e => { if (e.target.classList && e.target.classList.contains('ics-cb')) icsCount(); });
 
 /* ===== Fiche session ===== */
 function openSession(id, date, tpl) {
